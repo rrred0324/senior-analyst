@@ -53,7 +53,7 @@ class AkshareSource(BaseSource):
     ) -> DataResult:
         try:
             # Get income statement
-            df = self.ak.stock_financial_report_sina(stock=f"sh{ticker.lstrip('0')}" if ticker.startswith("6") else f"sz{ticker.lstrip('0')}", symbol="利润表")
+            df = self.ak.stock_financial_report_sina(stock=f"sh{ticker}" if ticker.startswith("6") else f"sz{ticker}", symbol="利润表")
             if df is None or df.empty:
                 return DataResult(success=False, error="No data from akshare")
 
@@ -62,11 +62,14 @@ class AkshareSource(BaseSource):
                 year = _extract_year(row)
                 if not year:
                     continue
+                _rev = _to_float(row.get("营业收入"))
+                _cost = _to_float(row.get("营业成本"))
+                _gross = (_rev - _cost) if (_rev is not None and _cost is not None) else None
                 data.append({
                     "year": year,
                     "quarter": "",
-                    "revenue": _to_float(row.get("营业收入")),
-                    "gross_profit": _to_float(row.get("营业成本")),
+                    "revenue": _rev,
+                    "gross_profit": _gross,
                     "net_income": _to_float(row.get("净利润")),
                     "operating_cash_flow": None,
                     "total_assets": None,

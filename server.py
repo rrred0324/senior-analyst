@@ -5,7 +5,6 @@ import os
 import logging
 import json
 import re
-import time
 from dataclasses import asdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -182,42 +181,45 @@ async def competitor_compare(identifier: str, metrics: str = "revenue,net_margin
         # Step 3: Try to find same-industry companies
         industry = target_data.get("industry", "")
         if industry:
-            try:
-                import httpx
-                em_url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
-                params = {
-                    "reportName": "RPT_LICO_FN_CPD",
-                    "columns": "SECURITY_CODE,SECURITY_NAME_ABBR,TOTAL_OPERATE_INCOME,PARENT_NETPROFIT",
-                    "filter": f'(SECURITY_NAME_ABBR like "%{industry}%")',
-                    "pageNumber": "1",
-                    "pageSize": "10",
-                    "sortTypes": "-1",
-                    "sortColumns": "TOTAL_OPERATE_INCOME",
-                    "source": "WEB",
-                    "client": "WEB",
-                }
-                async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-                    resp = await client.get(em_url, params=params)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    items = data.get("result", {}).get("data", []) if data.get("result") else []
-                    for item in items[:5]:
-                        code = item.get("SECURITY_CODE", "")
-                        if code == target_data.get("ticker", ""):
-                            continue
-                        rev = item.get("TOTAL_OPERATE_INCOME")
-                        ni = item.get("PARENT_NETPROFIT")
-                        peers_data.append({
-                            "name": item.get("SECURITY_NAME_ABBR", ""),
-                            "ticker": code,
-                            "revenue": rev,
-                            "net_income": ni,
-                            "net_margin": round(ni / rev, 4) if rev and ni and rev != 0 else None,
-                        })
-                    if peers_data:
-                        source = "eastmoney"
-            except Exception:
-                pass
+            # Sanitize industry to prevent filter injection
+            industry_safe = re.sub(r'[^\w一-鿿\s]', '', industry).strip()
+            if industry_safe:
+                try:
+                    import httpx
+                    em_url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+                    params = {
+                        "reportName": "RPT_LICO_FN_CPD",
+                        "columns": "SECURITY_CODE,SECURITY_NAME_ABBR,TOTAL_OPERATE_INCOME,PARENT_NETPROFIT",
+                        "filter": f'(SECURITY_NAME_ABBR like "%{industry_safe}%")',
+                        "pageNumber": "1",
+                        "pageSize": "10",
+                        "sortTypes": "-1",
+                        "sortColumns": "TOTAL_OPERATE_INCOME",
+                        "source": "WEB",
+                        "client": "WEB",
+                    }
+                    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                        resp = await client.get(em_url, params=params)
+                        resp.raise_for_status()
+                        data = resp.json()
+                        items = data.get("result", {}).get("data", []) if data.get("result") else []
+                        for item in items[:5]:
+                            code = item.get("SECURITY_CODE", "")
+                            if code == target_data.get("ticker", ""):
+                                continue
+                            rev = item.get("TOTAL_OPERATE_INCOME")
+                            ni = item.get("PARENT_NETPROFIT")
+                            peers_data.append({
+                                "name": item.get("SECURITY_NAME_ABBR", ""),
+                                "ticker": code,
+                                "revenue": rev,
+                                "net_income": ni,
+                                "net_margin": round(ni / rev, 4) if rev and ni and rev != 0 else None,
+                            })
+                        if peers_data:
+                            source = "eastmoney"
+                except Exception:
+                    pass
 
         if not industry and not target_data.get("revenue"):
             return json.dumps({
@@ -270,8 +272,9 @@ async def news_search(query: str, limit: int = 5) -> str:
 
     Args:
         query: Search keywords (e.g., "滴滴 保险", "Tesla earnings")
-        limit: Maximum number of results (default 5)
+        limit: Maximum number of results (default 5, max 20)
     """
+    limit = min(max(limit, 1), 20)
     # L1: akshare (eastmoney news via stock_news_em)
     result = await _akshare.get_news(query, limit)
     if result.has_data():

@@ -63,11 +63,14 @@ class EastmoneySource(BaseSource):
 
                 result_data = []
                 for item in items[:years]:
+                    _revenue = _em_to_float(item.get("TOTAL_OPERATE_INCOME"))
+                    _operate_cost = _em_to_float(item.get("OPERATE_COST"))
+                    _gross = (_revenue - _operate_cost) if (_revenue is not None and _operate_cost is not None) else None
                     result_data.append({
                         "year": _em_extract_year(item.get("REPORT_DATE") or item.get("NOTICE_DATE", "")),
                         "quarter": "",
-                        "revenue": _em_to_float(item.get("TOTAL_OPERATE_INCOME")),
-                        "gross_profit": _em_to_float(item.get("OPERATE_INCOME")),
+                        "revenue": _revenue,
+                        "gross_profit": _gross,
                         "net_income": _em_to_float(item.get("PARENT_NETPROFIT")),
                         "operating_cash_flow": _em_to_float(item.get("NETCASH_OPERATE")),
                         "total_assets": _em_to_float(item.get("TOTAL_ASSETS")),
