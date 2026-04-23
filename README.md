@@ -24,7 +24,7 @@ Claude Code 的企业经营分析 skill，输入 `/senior_analyst` 即可触发�
 ## 安装
 
 ```bash
-git clone https://github.com/<user>/senior-analyst.git
+git clone https://github.com/rrred0324/senior-analyst.git
 cd senior-analyst
 ./setup.sh
 ```

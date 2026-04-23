@@ -126,7 +126,7 @@ class EastmoneySource(BaseSource):
                         market_cap=d.get("f116"),
                         pe_ratio=d.get("f162"),
                         ps_ratio=d.get("f167"),
-                        pb_ratio=d.get("f167"),
+                        pb_ratio=d.get("f173"),
                         description="",
                     ),
                     source="eastmoney",
@@ -247,6 +247,7 @@ class EastmoneySource(BaseSource):
             params = {
                 "input": name,
                 "type": "14",
+                # Eastmoney public suggest API token (same as akshare uses)
                 "token": "D43BF722C8E33BDC906FB84D85E326E8",
                 "count": "5",
             }

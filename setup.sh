@@ -1,6 +1,6 @@
 #!/bin/bash
 # senior_analyst 一键安装脚本
-# 用法: git clone https://github.com/<user>/senior-analyst.git && cd senior-analyst && ./setup.sh
+# 用法: git clone https://github.com/rrred0324/senior-analyst.git && cd senior-analyst && ./setup.sh
 
 set -e
 
@@ -15,24 +15,29 @@ echo ""
 
 # Step 1: 检测 Python 3.10+
 echo "[1/6] 检测 Python 环境..."
-if command -v python3 &>/dev/null; then
-    PYTHON=python3
-elif command -v python &>/dev/null; then
-    PYTHON=python
-else
-    echo "错误: 未找到 Python。请安装 Python 3.10+ 后重试。"
+PYTHON=""
+for cmd in python3 python; do
+    if command -v "$cmd" &>/dev/null; then
+        PY_VER=$($cmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+        if [ -n "$PY_VER" ]; then
+            PY_MAJOR=$($cmd -c "import sys; print(sys.version_info.major)" 2>/dev/null)
+            PY_MINOR=$($cmd -c "import sys; print(sys.version_info.minor)" 2>/dev/null)
+            if [ "$PY_MAJOR" -ge 3 ] && [ "$PY_MINOR" -ge 10 ]; then
+                PYTHON="$cmd"
+                break
+            fi
+        fi
+    fi
+done
+
+if [ -z "$PYTHON" ]; then
+    echo "错误: 未找到 Python 3.10+。请安装后重试。"
+    echo "  macOS: brew install python@3.12"
+    echo "  Ubuntu: sudo apt install python3.12"
     exit 1
 fi
 
-PY_VERSION=$($PYTHON -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-PY_MAJOR=$($PYTHON -c "import sys; print(sys.version_info.major)")
-PY_MINOR=$($PYTHON -c "import sys; print(sys.version_info.minor)")
-
-if [ "$PY_MAJOR" -lt 3 ] || ([ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 10 ]); then
-    echo "错误: Python 版本过低 ($PY_VERSION)。需要 Python 3.10+。"
-    exit 1
-fi
-echo "  Python $PY_VERSION ✓"
+echo "  Python $PY_VER (via $PYTHON) ✓"
 
 # Step 2: 创建 venv
 echo "[2/6] 创建虚拟环境..."

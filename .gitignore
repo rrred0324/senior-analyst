@@ -4,3 +4,11 @@ __pycache__/
 .DS_Store
 tools/
 *.egg-info/
+dist/
+build/
+*.log
+.env
+.env.*
+.claude/
+.idea/
+.vscode/

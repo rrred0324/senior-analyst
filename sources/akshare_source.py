@@ -206,6 +206,7 @@ class AkshareSource(BaseSource):
             params = {
                 "input": name,
                 "type": "14",
+                # Eastmoney public suggest API token (same as akshare uses)
                 "token": "D43BF722C8E33BDC906FB84D85E326E8",
                 "count": "5",
             }
