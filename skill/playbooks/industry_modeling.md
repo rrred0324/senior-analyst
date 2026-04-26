@@ -11,6 +11,14 @@
 | 游戏/手游/端游/IAP/IAA/买量/游戏运营 | industries/gaming.md | 生命周期是核心变量 |
 | 广告/流量变现/程序化/ADX/DSP/广告主/加载率 | industries/internet_advertising.md | 流量-广告负载-ROI 三角 |
 | 消费电子/手机/耳机/智能家居/硬件/品牌/渠道 | industries/consumer_electronics.md | 产品周期+渠道库存是风险核心 |
+| 大模型/基础模型/LLM/Foundation Model/多模态/模型公司 | industries/ai_foundation_model.md | 模型能力vs商业化能力是核心矛盾 |
+| AI应用/AI Agent/Copilot/AI办公/AI客服/AI编程/垂直Agent | industries/ai_application_agent.md | 留存和工作流嵌入是核心 |
+| AI Infra/算力/GPU云/推理服务/MLOps/模型平台 | industries/ai_infra_compute.md | 利用率决定盈利能力 |
+| 具身智能/人形机器人/机器人/RaaS/通用机器人 | industries/embodied_intelligence_robot.md | 场景ROI+单台economics是核心 |
+| 工业智能/机器视觉/工业AI/质检/边缘智能/产线智能化 | industries/industrial_intelligence_vision.md | ROI导向+标准化是分水岭 |
+| 智能汽车/自动驾驶/智驾/域控/车载算法/Robotaxi | industries/smart_vehicle_autonomous.md | 前装定点+SOP量产是关键拐点 |
+| 半导体/芯片/EDA/Fabless/IDM/封测/设备材料 | industries/semiconductor.md | 良率+客户导入+周期性是核心 |
+| 医疗科技/AI医疗/医疗器械/数字医疗/院内SaaS | industries/medtech_ai_healthcare.md | 监管准入+付费链条是关键 |
 | 尽调/投资判断/投资决策 | investment_due_diligence.md | 投资尽调流程 |
 | 不在上述注册表中的行业 | industry_methodology.md | 用十步法从零建模 |
 
