@@ -17,6 +17,7 @@
 | 行业对标/行业特性 | 行业分析 | finance_industry_analysis, competitive_analysis | strategy_analysis | competitive_analysis_report |
 | 对比/和XX比/谁更强/对标 | 竞争对手对比 | competitive_analysis | business_analysis, finance_industry_analysis | competitive_analysis_report |
 | 未来预测/估值/情景/如果XX | 情景/敏感性分析 | scenario_sensitivity_analysis | finance_industry_analysis, strategy_analysis | scenario_analysis_report |
+| 行业建模/行业分析/金融/物流/游戏/广告/消费电子/尽调 | 行业商业建模 | industry_modeling | 视行业选辅助 playbook | industry_modeling_report |
 | 通用决策/多方案对比 | 决策支持 | 视具体问题 | 多 playbook 组合 | decision_memo |
 
 ## 混合型问题处理
@@ -53,6 +54,30 @@
 → 辅：product_ops_analysis（产品差距）+ business_analysis（商业模式差异）
 → 输出：competitive_analysis_report + strategy_memo
 
+### 行业+战略选择
+**例**："这家保险公司要不要进入健康险赛道？"
+→ 主：industry_modeling（行业建模）
+→ 辅：strategy_analysis（战略选择）
+→ 输出：industry_modeling_report + strategy_memo
+
+### 行业+竞争对手对比
+**例**："顺丰和中通的商业模式差异在哪？"
+→ 主：industry_modeling（行业建模）
+→ 辅：competitive_analysis（竞争对手对比）
+→ 输出：industry_modeling_report + competitive_analysis_report
+
+### 行业+投资判断
+**例**："这家游戏公司值不值得投？"
+→ 主：industry_modeling（行业建模）
+→ 辅：finance_industry_analysis + scenario_sensitivity_analysis
+→ 输出：industry_modeling_report + scenario_analysis_report
+
+### 行业+财报分析
+**例**："这家银行的财报有没有问题？"
+→ 主：industry_modeling（行业建模）
+→ 辅：finance_industry_analysis（财报分析）
+→ 输出：industry_modeling_report + finance_risk_report
+
 ## 关键词识别规则
 
 ### 触发「指标异动诊断」
@@ -78,6 +103,15 @@
 
 ### 触发「情景/敏感性分析」
 关键词：未来预测、估值、情景、如果XX会怎样、最好情况、最坏情况、Bull、Bear、敏感、假设变化、稳健性
+
+### 触发「行业商业建模」
+关键词：行业建模、行业分析、商业模式拆解、行业研究、行业模板、
+      金融、银行、保险、信贷、消费金融、助贷、风控、牌照、
+      物流、快递、供应链、仓配、货运、冷链、
+      游戏、手游、端游、IAP、IAA、买量、游戏运营、
+      广告、流量变现、程序化、ADX、DSP、广告主、加载率、
+      消费电子、手机、耳机、智能家居、硬件、品牌、渠道、
+      尽调、投资判断、投资决策
 
 ## 问题类型不明确时
 

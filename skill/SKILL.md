@@ -8,8 +8,15 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 ## 交互模式
 
 ### 带参数模式
-用户输入：`/senior_analyst 滴滴`
+用户输入：`/senior_analyst 腾讯`
 → 将参数作为分析对象，直接进入 Step 1 问题识别
+
+### 行业建模模式
+用户输入：`/senior_analyst 金融 平安` 或 `/senior_analyst --industry 信贷`
+→ 识别到行业关键词或 --industry 标志
+→ 直接进入 industry_modeling playbook
+→ 根据行业关键词加载对应 knowledge/industries/ 文件
+→ 按行业建模六步流程推进
 
 ### 引导模式
 用户输入：`/senior_analyst`（无参数）
@@ -117,6 +124,18 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 - 所有数据必须标注来源标签（用户提供/网页检索/训练数据/经验参照）
 - 当实时数据源不可用时，必须在输出中声明数据采集受限
 
+### 16. 行业建模必须先理解行业本质
+凡涉及特定行业分析，必须先加载行业知识库，理解：
+- 这个行业怎么赚钱
+- 价值链怎么流转
+- 行业关键约束是什么
+- 不能用通用商业分析框架硬套金融、游戏等特化行业
+
+### 17. 金融行业分析必须先看监管和风险
+凡涉及金融行业（银行/保险/信贷），分析顺序必须是：
+监管环境 → 风险定价能力 → 资本约束 → 资产质量 → 盈利可持续性
+不能先看利润再倒推。
+
 ---
 
 ## 工作流程（强制执行）
@@ -131,6 +150,7 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 - 财报分析/排雷
 - 竞争对手对比分析
 - 情景/敏感性分析
+- 行业商业建模
 - 混合型问题
 
 **操作**：加载 `router.md`，按路由规则确定任务类型。
@@ -145,6 +165,7 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 - 财报分析类 → `playbooks/finance_industry_analysis.md`
 - 竞争对比类 → `playbooks/competitive_analysis.md`
 - 情景/敏感性类 → `playbooks/scenario_sensitivity_analysis.md`
+- 行业建模类 → `playbooks/industry_modeling.md`
 
 ### Step 3: 数据需求评估与采集
 **加载 `data_protocol.md`，按协议执行**：
@@ -180,6 +201,7 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 - 通用决策 → `templates/decision_memo.md`
 - 竞争对手对比 → `templates/competitive_analysis_report.md`
 - 情景分析 → `templates/scenario_analysis_report.md`
+- 行业建模 → `templates/industry_modeling_report.md`
 
 ### Step 6: 自检
 用 `rubrics/completeness_checklist.md` 自检输出是否完整。
@@ -290,3 +312,4 @@ description: 企业经营分析专家 skill。当用户提出涉及数据分析�
 - ❌ 不跳过数据采集步骤（必须按 data_protocol.md 执行）
 - ❌ 不仅凭训练数据给涉及具体数字的确定性结论（必须尝试实时数据源）
 - ❌ 不在数据采集受限时隐瞒（必须声明受限状态）
+- ❌ 不跨行业硬套通用分析框架（金融/游戏等特化行业必须加载行业知识库）
