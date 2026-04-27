@@ -1,6 +1,6 @@
-# Senior Analyst — 企业经营分析专家
+# Senior Analyst — 商业分析专家
 
-Claude Code 的企业经营分析 skill，输入 `/senior_analyst` 即可触发。
+Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
 ## 功能
 
