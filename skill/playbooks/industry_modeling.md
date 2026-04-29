@@ -1,24 +1,38 @@
 # 行业商业建模 Playbook
 
-> 触发条件：用户问题涉及特定行业深度建模（金融/物流/游戏/广告/消费电子/尽调等），或参数中包含行业关键词/--industry 标志
+> 触发条件：用户问题涉及特定行业深度建模，或参数中包含行业关键词/--industry 标志
 
 ## 行业注册表
 
 | 行业关键词 | 加载 knowledge 文件 | 特殊说明 |
 |---|---|---|
 | 金融/银行/保险/信贷/消费金融/助贷/风控/牌照 | industries/finance.md | 必须先看监管，再看利润 |
-| 物流/快递/仓配/供应链/即时零售/货运/冷链 | industries/logistics.md | 需拆子赛道 |
+| 金融科技/支付/Fintech/数字银行/互联网保险 | industries/fintech.md | 监管+技术+场景三重驱动 |
+| SaaS/软件/订阅/企业软件/CRM/ERP/协同办公 | industries/saas.md | 续费+扩单是利润核心 |
+| 电商/零售/平台电商/自营/直播电商/跨境电商 | industries/ecommerce.md | GMV×take rate，流量成本是关键 |
+| AI/大模型/AI应用/Agent/生成式AI/AIGC | industries/ai.md | 模型能力vs商业化能力是核心矛盾 |
 | 游戏/手游/端游/IAP/IAA/买量/游戏运营 | industries/gaming.md | 生命周期是核心变量 |
-| 广告/流量变现/程序化/ADX/DSP/广告主/加载率 | industries/internet_advertising.md | 流量-广告负载-ROI 三角 |
+| 传媒/广告/流量变现/程序化/短视频/内容营销 | industries/media_advertising.md | 流量-广告负载-ROI 三角 |
+| 物流/快递/仓配/供应链/即时零售/货运/冷链 | industries/logistics_supply_chain.md | 需拆子赛道，路由密度是关键 |
 | 消费电子/手机/耳机/智能家居/硬件/品牌/渠道 | industries/consumer_electronics.md | 产品周期+渠道库存是风险核心 |
-| 大模型/基础模型/LLM/Foundation Model/多模态/模型公司 | industries/ai_foundation_model.md | 模型能力vs商业化能力是核心矛盾 |
-| AI应用/AI Agent/Copilot/AI办公/AI客服/AI编程/垂直Agent | industries/ai_application_agent.md | 留存和工作流嵌入是核心 |
-| AI Infra/算力/GPU云/推理服务/MLOps/模型平台 | industries/ai_infra_compute.md | 利用率决定盈利能力 |
-| 具身智能/人形机器人/机器人/RaaS/通用机器人 | industries/embodied_intelligence_robot.md | 场景ROI+单台economics是核心 |
-| 工业智能/机器视觉/工业AI/质检/边缘智能/产线智能化 | industries/industrial_intelligence_vision.md | ROI导向+标准化是分水岭 |
-| 智能汽车/自动驾驶/智驾/域控/车载算法/Robotaxi | industries/smart_vehicle_autonomous.md | 前装定点+SOP量产是关键拐点 |
+| 新能源/光伏/风电/储能/充电桩/新能源车 | industries/new_energy.md | 政策驱动+技术降本双轮 |
 | 半导体/芯片/EDA/Fabless/IDM/封测/设备材料 | industries/semiconductor.md | 良率+客户导入+周期性是核心 |
-| 医疗科技/AI医疗/医疗器械/数字医疗/院内SaaS | industries/medtech_ai_healthcare.md | 监管准入+付费链条是关键 |
+| 教育/培训/K12/职业教育/在线教育/知识付费 | industries/education.md | 政策敏感+获客成本是核心约束 |
+| 企业服务/B2B/企业IT/数字化/HR服务/财税服务 | industries/enterprise_service.md | 客户生命周期价值+交付效率 |
+| 医疗/医疗健康/医疗器械/数字医疗/医院/医药 | industries/healthcare.md | 监管准入+付费链条是关键 |
+| 房地产/地产/物业/长租/REITs/经纪 | industries/real_estate.md | 周期性+资金链是核心 |
+| 汽车/出行/新能源车/智能驾驶/二手车/网约车 | industries/automotive.md | 产能周期+产品周期双驱动 |
+| 消费/消费品/快消/零售/食品饮料/服装 | industries/consumer.md | 品牌力+渠道效率是核心 |
+| 本地生活/外卖/到店/社区团购/即时零售 | industries/local_life.md | 单城模型+履约成本是关键 |
+| 餐饮/连锁餐饮/快餐/茶饮/火锅 | industries/restaurant.md | 单店模型+供应链是核心 |
+| 旅游/OTA/酒店/民宿/景区/出行服务 | industries/travel.md | 季节性+复购率是关键 |
+| 文娱/内容/IP/影视/动漫/阅读/直播 | industries/entertainment.md | 爆款概率+IP生命周期 |
+| 美妆/个护/化妆品/护肤/彩妆/美容 | industries/beauty.md | 品牌力+复购+渠道是核心 |
+| 母婴/孕产/婴童/早教/母婴用品 | industries/maternity_baby.md | 人口趋势+信任链是关键 |
+| 宠物/宠物食品/宠物医疗/宠物服务 | industries/pet.md | 情感驱动+复购率是核心 |
+| 家居/家装/家具/建材/软装/装修 | industries/home_furniture.md | 客单价高+低频+重度交付 |
+| 出海/跨境/全球化/海外市场/国际业务 | industries/going_global.md | 本地化能力+合规是核心 |
+| 工业自动化/工业互联网/智能制造/PLC/DCS | industries/industrial_automation.md | ROI导向+标准化是分水岭 |
 | 尽调/投资判断/投资决策 | investment_due_diligence.md | 投资尽调流程 |
 | 不在上述注册表中的行业 | industry_methodology.md | 用十步法从零建模 |
 

@@ -12,4 +12,4 @@ build/
 .claude/
 .idea/
 .vscode/
-docs/
+docs/__pycache__/
