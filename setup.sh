@@ -72,6 +72,7 @@ fi
 echo "[5/6] 安装 skill 文件..."
 mkdir -p "$SKILL_TARGET_DIR"
 cp -r "$SCRIPT_DIR/skill/"* "$SKILL_TARGET_DIR/"
+cp "$SCRIPT_DIR/VERSION" "$SKILL_TARGET_DIR/"
 echo "  Skill 文件已安装到 $SKILL_TARGET_DIR ✓"
 
 # Step 6: 验证

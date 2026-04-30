@@ -26,6 +26,40 @@ description: 商业分析专家 skill。当用户提出涉及数据分析、战�
 → 直接输出行业速查卡或分析框架速查卡
 → 输出后追问是否需要深入
 
+### 升级模式
+用户输入：`/senior_analyst --upgrade`
+→ 识别到 --upgrade 标志
+→ 执行在线升级流程：
+1. 显示当前版本（读取 `~/.claude/skills/senior_analyst/VERSION`）
+2. 从 GitHub 克隆最新版本到临时目录
+3. 比较版本号，如版本相同则提示"已是最新"
+4. 更新 `~/.claude/skills/senior_analyst/` 下的 skill 文件
+5. 更新 Python 依赖和 MCP 服务器注册
+6. 输出升级结果和新版本号
+7. 提示用户重启 Claude Code 使更新生效
+
+**具体操作**：
+```bash
+# 找到 upgrade.sh（优先从 repo 目录查找，其次从 GitHub 克隆）
+# 方案A: 用户之前 clone 过 repo
+cd /path/to/senior-analyst && ./upgrade.sh
+
+# 方案B: 没有本地 repo，临时克隆后执行
+TEMP_DIR=$(mktemp -d)
+git clone --depth 1 https://github.com/rrred0324/senior-analyst.git "$TEMP_DIR"
+cd "$TEMP_DIR" && ./upgrade.sh
+```
+
+**注意**：
+- 升级不影响用户自定义修改的文件（如有）
+- 升级后需重启 Claude Code
+- 如网络不通，提示用户手动 `git pull && ./setup.sh`
+
+### 版本查询
+用户输入：`/senior_analyst --version`
+→ 读取并显示当前版本号
+→ 如有新版本可用，提示用户运行 `--upgrade`
+
 ### 引导模式
 用户输入：`/senior_analyst`（无参数）
 → 先询问用户：

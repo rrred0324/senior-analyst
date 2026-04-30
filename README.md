@@ -121,6 +121,31 @@ cp -r skill/* ~/.claude/skills/senior_analyst/
 # 4. 重启 Claude Code
 ```
 
+## 在线升级
+
+当 GitHub 上有新版本发布时，在 Claude Code 中直接升级：
+
+```
+/senior_analyst --upgrade
+```
+
+升级流程：
+1. 从 GitHub 拉取最新代码
+2. 比较版本号，如已是最新则跳过
+3. 更新 skill 文件和 VERSION
+4. 更新 Python 依赖和 MCP 注册
+5. 重启 Claude Code 使更新生效
+
+也可以手动升级：
+
+```bash
+cd senior-analyst    # 进入原 clone 目录
+git pull
+./upgrade.sh
+```
+
+查看当前版本：`/senior_analyst --version`
+
 ## 使用
 
 ### 三级深度模式
@@ -155,6 +180,10 @@ L1 输出后自动追问是否升级到 L2/L3，渐进式深入。
 # 行业建模模式
 /senior_analyst 金融 平安          → 行业建模，分析金融行业
 /senior_analyst --industry 信贷     → 显式行业建模模式
+
+# 升级与版本
+/senior_analyst --upgrade           → 在线升级到最新版本
+/senior_analyst --version           → 查看当前版本
 
 # 引导模式
 /senior_analyst                    → 询问分析对象和意图
