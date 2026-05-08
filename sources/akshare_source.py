@@ -142,17 +142,66 @@ class AkshareSource(BaseSource):
         if self.ak is None:
             return DataResult(success=False, error="akshare not installed")
 
+        # Try industry board data first (申万行业)
         try:
-            # Try to get macro industry data
+            df = self.ak.stock_board_industry_name_em()
+            if df is not None and not df.empty:
+                # Find matching industry
+                match = df[df["板块名称"].str.contains(industry, na=False)]
+                if match.empty:
+                    match = df[df["板块名称"].str.contains(industry[:2], na=False)]
+                if not match.empty:
+                    row = match.iloc[0]
+                    board_code = row.get("板块代码", "")
+                    board_name = row.get("板块名称", industry)
+
+                    # Get board constituents and performance
+                    result_data = {
+                        "industry": board_name,
+                        "region": "中国",
+                        "classification": "东方财富行业板块",
+                        "board_code": board_code,
+                        "change_pct": _to_float(row.get("涨跌幅")),
+                    }
+
+                    # Try to get more details
+                    try:
+                        cons_df = self.ak.stock_board_industry_cons_em(symbol=board_name)
+                        if cons_df is not None and not cons_df.empty:
+                            result_data["constituent_count"] = len(cons_df)
+                            top_stocks = []
+                            for _, s in cons_df.head(10).iterrows():
+                                top_stocks.append({
+                                    "code": s.get("代码", ""),
+                                    "name": s.get("名称", ""),
+                                    "change_pct": _to_float(s.get("涨跌幅")),
+                                })
+                            result_data["top_stocks"] = top_stocks
+                    except Exception:
+                        pass
+
+                    return DataResult(success=True, data=result_data, source="akshare")
+        except Exception as e:
+            logger.warning(f"akshare industry board failed: {e}")
+
+        # Fallback: macro data
+        try:
             df = self.ak.macro_china_gdp()
             if df is not None and not df.empty:
+                latest = df.tail(3)
                 return DataResult(
                     success=True,
-                    data={"industry": industry, "region": region, "macro_gdp_data": df.tail(3).to_dict()},
+                    data={
+                        "industry": industry,
+                        "region": region,
+                        "classification": "宏观经济数据",
+                        "macro_gdp_data": latest.to_dict(),
+                        "note": "Specific industry data not found, returning macro GDP as fallback",
+                    },
                     source="akshare",
                 )
         except Exception as e:
-            logger.warning(f"akshare get_market_data failed: {e}")
+            logger.warning(f"akshare macro data failed: {e}")
 
         return DataResult(success=False, error=f"akshare: no market data for {industry}")
 
@@ -176,6 +225,146 @@ class AkshareSource(BaseSource):
             logger.warning(f"akshare get_news failed: {e}")
 
         return DataResult(success=False, error="akshare: no news data")
+
+    async def get_industry_data(
+        self, industry: str, region: str = "global", metric: str = ""
+    ) -> DataResult:
+        """Get industry classification, constituents, and valuation from akshare."""
+        if self.ak is None:
+            return DataResult(success=False, error="akshare not installed")
+
+        from datetime import datetime, timezone
+
+        try:
+            # Get Shenwan industry index data
+            df = self.ak.index_stock_info_shenwan()
+            if df is not None and not df.empty:
+                match = df[df["行业名称"].str.contains(industry, na=False)]
+                if match.empty:
+                    match = df[df["行业名称"].str.contains(industry[:2], na=False)]
+                if not match.empty:
+                    row = match.iloc[0]
+                    industry_code = row.get("行业代码", "")
+                    industry_name = row.get("行业名称", industry)
+
+                    result_data = {
+                        "industry": industry_name,
+                        "classification_system": "申万行业分类",
+                        "industry_code": industry_code,
+                    }
+
+                    # Get constituent stocks
+                    try:
+                        cons_df = self.ak.index_component_sw(symbol=industry_code)
+                        if cons_df is not None and not cons_df.empty:
+                            stocks = []
+                            for _, s in cons_df.head(20).iterrows():
+                                stocks.append({
+                                    "code": str(s.get("股票代码", "")),
+                                    "name": str(s.get("股票名称", "")),
+                                })
+                            result_data["constituent_stocks"] = stocks
+                    except Exception:
+                        pass
+
+                    result_data["data_source"] = "akshare"
+                    result_data["fetched_at"] = datetime.now(timezone.utc).isoformat()
+                    return DataResult(success=True, data=result_data, source="akshare")
+        except Exception as e:
+            logger.warning(f"akshare get_industry_data failed: {e}")
+
+        # Fallback: eastmoney industry board
+        try:
+            df = self.ak.stock_board_industry_name_em()
+            if df is not None and not df.empty:
+                match = df[df["板块名称"].str.contains(industry, na=False)]
+                if match.empty:
+                    match = df[df["板块名称"].str.contains(industry[:2], na=False)]
+                if not match.empty:
+                    row = match.iloc[0]
+                    board_name = row.get("板块名称", industry)
+                    result_data = {
+                        "industry": board_name,
+                        "classification_system": "东方财富行业板块",
+                    }
+                    try:
+                        cons_df = self.ak.stock_board_industry_cons_em(symbol=board_name)
+                        if cons_df is not None and not cons_df.empty:
+                            stocks = []
+                            for _, s in cons_df.head(20).iterrows():
+                                stocks.append({
+                                    "code": str(s.get("代码", "")),
+                                    "name": str(s.get("名称", "")),
+                                })
+                            result_data["constituent_stocks"] = stocks
+                    except Exception:
+                        pass
+
+                    result_data["data_source"] = "akshare"
+                    result_data["fetched_at"] = datetime.now(timezone.utc).isoformat()
+                    return DataResult(success=True, data=result_data, source="akshare")
+        except Exception as e:
+            logger.warning(f"akshare eastmoney board fallback failed: {e}")
+
+        return DataResult(success=False, error=f"akshare: no industry data for {industry}")
+
+    async def get_stock_news(
+        self, identifier: str, days: int = 7, limit: int = 10
+    ) -> DataResult:
+        """Get company-specific news and announcements from akshare."""
+        if self.ak is None:
+            return DataResult(success=False, error="akshare not installed")
+
+        from datetime import datetime, timezone
+
+        ticker = self._resolve_cn_ticker(identifier)
+
+        articles = []
+        announcements = []
+
+        # Get stock news from eastmoney
+        try:
+            df = self.ak.stock_news_em(symbol=ticker or identifier)
+            if df is not None and not df.empty:
+                for _, row in df.head(limit).iterrows():
+                    articles.append({
+                        "title": row.get("新闻标题", ""),
+                        "source": row.get("新闻来源", ""),
+                        "date": str(row.get("发布时间", "")),
+                        "snippet": str(row.get("新闻内容", ""))[:200],
+                    })
+        except Exception as e:
+            logger.warning(f"akshare stock_news_em failed: {e}")
+
+        # Get company announcements
+        if ticker:
+            try:
+                df = self.ak.stock_notice_report(symbol=ticker)
+                if df is not None and not df.empty:
+                    for _, row in df.head(5).iterrows():
+                        announcements.append({
+                            "title": row.get("标题", ""),
+                            "type": row.get("类型", ""),
+                            "date": str(row.get("公告日期", "")),
+                        })
+            except Exception as e:
+                logger.warning(f"akshare stock_notice_report failed: {e}")
+
+        if not articles and not announcements:
+            return DataResult(success=False, error="akshare: no stock news or announcements")
+
+        return DataResult(
+            success=True,
+            data={
+                "identifier": identifier,
+                "ticker": ticker or "",
+                "articles": articles,
+                "announcements": announcements,
+                "data_source": "akshare",
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            },
+            source="akshare",
+        )
 
     def _resolve_cn_ticker(self, identifier: str) -> str | None:
         """Try to resolve identifier to a CN stock ticker."""

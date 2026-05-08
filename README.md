@@ -10,6 +10,8 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 - **competitor_compare** — 竞品对比（同行业公司财务指标）
 - **market_data** — 行业数据（市场规模、增长率）
 - **news_search** — 新闻搜索（公司/行业/事件相关新闻）
+- **industry_data** — 行业分类与成分股（申万/东方财富行业板块）
+- **stock_news** — 个股新闻与公告
 
 ### 分析框架（skill 层，9 类任务）
 - 指标异动诊断
@@ -26,12 +28,16 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
 ### 标准化分析框架
 
-基于统一的母模板体系，所有行业分析遵循相同结构：
+所有行业分析遵循统一的母模板体系，确保跨行业可比、口径一致：
 
-- **商业建模总模板**：行业本质 → 价值链 → 商业模式 → 收入成本 → 核心指标 → 竞争格局 → 风险 → 财务重点 → 市场空间 → 快速分析卡
-- **投资尽调总模板**：业务理解 → 产品 → 市场 → 客户验证 → 增长运营 → 核心数据 → 财务 → 团队 → 竞争壁垒 → 风险 → 投委会输出
-- **公司对比总模板**：商业模式对比 → 市场客户 → 经营数据 → 单位经济 → 财务质量 → 产品交付 → 壁垒 → 风险 → 综合评分 → 结论
-- **写作规范**：统一结构、口径、粒度、输出标准
+**母模板体系（5 份标准参考）**
+- 商业建模总模板 — 行业本质 → 价值链 → 商业模式 → 收入成本 → 核心指标 → 竞争格局 → 风险 → 财务重点 → 市场空间 → 快速分析卡
+- 投资尽调总模板 — 业务理解 → 产品 → 市场 → 客户验证 → 增长运营 → 核心数据 → 财务 → 团队 → 竞争壁垒 → 风险 → 投委会输出
+- 公司对比总模板 — 商业模式对比 → 市场客户 → 经营数据 → 单位经济 → 财务质量 → 产品交付 → 壁垒 → 风险 → 综合评分 → 结论
+- 写作规范 — 统一结构、口径、粒度、输出标准
+- 改造规则 — 旧文件迁移到母模板的统一标准
+
+每份行业模板按母模板结构展开，包含完整的：行业定义、商业本质、价值链条、商业模式分类、收入公式、成本模型、核心指标体系（9 层分层）、竞争格局与壁垒、风险分析（含风险信号）、财务分析重点、市场空间测算、尽调问题库、快速分析卡。
 
 ### 行业覆盖（27 个行业）
 
@@ -68,15 +74,20 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 ### 行业知识库层级
 
 ```
-L1 速查卡（skill 实时输出）
+L1 速查卡（skill 实时输出，<5秒）
   ↓ 需要深入？
-L2 精简版知识库（skill 运行时加载，5-10KB/行业）
+L2 精简版知识库（skill 运行时加载，5-10KB/行业，27 个行业）
   ↓ 需要完整参考？
-L3 完整版三件套（docs/industry_models/，30-55KB/行业）
-    - 商业建模标准版
+L3 完整版行业建模（docs/industry_models/，20-80KB/行业，27 个行业）
+    - 标准化商业建模（按母模板展开的完整 14 节）
     - 投资尽调模板
     - 公司对比模板
 ```
+
+完整行业建模文件位于 `docs/industry_models/` 目录，可直接用于：
+- 快速了解一个行业的商业本质和分析框架
+- 作为投资尽调或行业研究的标准化起点
+- 跨行业横向比较（统一结构、统一口径）
 
 ### 新行业快速建模
 
@@ -119,6 +130,29 @@ mkdir -p ~/.claude/skills/senior_analyst
 cp -r skill/* ~/.claude/skills/senior_analyst/
 
 # 4. 重启 Claude Code
+```
+
+### 可选：配置 API Key 增强数据源
+
+默认零 API Key 即可使用。配置以下环境变量可解锁更高质量数据源：
+
+```bash
+# FMP — 免费tier 250次/天，美股/全球财务数据最佳
+export SENIOR_ANALYST_FMP_KEY="your_key"
+
+# Alpha Vantage — 免费tier 25次/天，含新闻情绪分析
+export SENIOR_ANALYST_AV_KEY="your_key"
+
+# NewsAPI — 免费tier 100次/天，专业新闻搜索
+export SENIOR_ANALYST_NEWSAPI_KEY="your_key"
+```
+
+也可在项目目录创建 `.env` 文件：
+
+```
+SENIOR_ANALYST_FMP_KEY=your_key
+SENIOR_ANALYST_AV_KEY=your_key
+SENIOR_ANALYST_NEWSAPI_KEY=your_key
 ```
 
 ## 在线升级
@@ -199,19 +233,24 @@ L1 输出后自动追问是否升级到 L2/L3，渐进式深入。
 
 | 源 | 类型 | 覆盖 | 中国可用 | API Key |
 |----|------|------|---------|---------|
-| 东方财富 (eastmoney) | HTTP API | A 股、港股财务数据 | ✅ | 无 |
-| akshare | Python 库 | A 股、港股、宏观经济 | ✅ | 无 |
-| yfinance | Python 库 | 美股、港股、全球 | ❌ 大陆不可用 | 无 |
+| 东方财富 (eastmoney) | HTTP API | A 股财务数据、行业板块、新闻搜索 | ✅ | 无 |
+| akshare | Python 库 | A 股、港股、申万行业、宏观经济 | ✅ | 无 |
+| yfinance | Python 库 | 美股、港股、全球市场 | ❌ 大陆不可用 | 无 |
+| FMP | REST API | 美股/全球财务、同行、行业数据 | ✅ | 可选 |
+| Alpha Vantage | REST API | 财务、估值、新闻情绪 | ✅ | 可选 |
+| NewsAPI | REST API | 专业新闻搜索（中英文） | ✅ | 可选 |
 
-降级链：**eastmoney → akshare → yfinance**，确保中国大陆网络优先使用可访问源。
+默认降级链（零 API Key）：**eastmoney → akshare → yfinance**
 
-新闻搜索降级链：**akshare(stock_news_em) → 东方财富搜索 API → 新浪财经**
+配置 API Key 后：**FMP → eastmoney → akshare → yfinance → Alpha Vantage**
+
+新闻搜索降级链：**NewsAPI（可选）→ akshare → 东方财富搜索 API → Alpha Vantage（可选）**
 
 ## 要求
 
 - Python 3.10+
 - Claude Code CLI
-- 零 API Key
+- 零 API Key 即可使用基础功能
 
 ## License
 
