@@ -15,13 +15,31 @@
 | "深度报告""尽调""全面分析""完整分析""深度研究" | **L3 深度报告** | 用户要的是全流程深度分析 |
 | 无明确深度信号 | **默认 L1** | 先给框架，再追问是否需要深入 |
 
+### L3 触发信号拓宽
+
+以下任务类型即使没有"深度""尽调"等显式信号，也**默认倾向 L3**（因为结论高度依赖假设，Council 多视角价值大）：
+
+| 任务类型 | 关键词示例 | 倾向 L3 的原因 |
+|---------|-----------|---------------|
+| 行业商业建模 | "行业分析""商业模式拆解""行业研究" | 系统性判断，假设依赖度高 |
+| 商业模式评估 | "商业模式""单位经济""盈利模式""规模效应" | 叙事自洽风险高，需要证伪 |
+| 战略选择 | "要不要进入""战略选择""方向""资源配置" | 决策影响大，Red Team 必须深度 |
+| 投资判断 | "估值""值不值得投""投资分析" | 逆向思维对投资不可或缺 |
+| 竞争对手对比 | "对比""和XX比""竞品分析""商业模式差异" | 容易锚定单一视角 |
+
+**操作**：当识别到以上任务类型时，主动向用户确认深度：
+
+> "这个问题涉及 [行业建模/商业模式评估/战略选择]，建议用深度分析模式（L3），会包含完整的对抗性审查和多视角分析。可以吗？"
+> A) L3 深度分析（推荐）
+> B) L2 定量分析（更快，轻量审查）
+
 ### 深度级别对应策略
 
-| 级别 | 数据采集 | 输出模板 | MCP 查询 | 预期响应时间 |
-|-----|---------|---------|---------|------------|
-| L1 | 跳过，直接用 knowledge 库 | quick_card 模板 | 不触发 | <5 秒 |
-| L2 | 按需查询必查项 | 标准模板 | 必查项并行，选查按需 | 10-20 秒 |
-| L3 | 完整执行 mcp_queries.md | 完整报告模板 | 全流程按序/并行 | 30-60 秒 |
+| 级别 | 数据采集 | 输出模板 | MCP 查询 | Council 模式 | 预期响应时间 |
+|-----|---------|---------|---------|------------|------------|
+| L1 | 跳过，直接用 knowledge 库 | quick_card 模板 | 不触发 | 不触发 | <5 秒 |
+| L2 | 按需查询必查项 | 标准模板 | 必查项并行，选查按需 | 轻量 Council（5 项审查 + 1-2 Bull/Bear） | 10-20 秒 |
+| L3 | 完整执行 mcp_queries.md | 完整报告模板 | 全流程按序/并行 | 完整 Council（7 类谬误 + 全覆盖 Bull/Bear + Chairman） | 30-60 秒 |
 
 ### 深度提升追问
 
@@ -39,21 +57,23 @@ D) 够了，不需要深入
 
 ### 路由矩阵
 
-| 用户问题特征 | 主要任务类型 | 主 Playbook | 辅助 Playbook | L1 快速模板 | L2/L3 标准模板 |
-|------------|-------------|-----------|--------------|------------|--------------|
-| 指标下降/上升/波动/异常 | 指标异动诊断 | data_analysis | business_analysis, product_ops_analysis | framework_quick_card | metric_diagnosis |
-| 留存/激活/PMF/增长瓶颈 | PMF/增长诊断 | product_ops_analysis | data_analysis, business_analysis | framework_quick_card | pmf_growth_report |
-| 商业模式/如何赚钱/UE/LTV/CAC | 商业模式评估 | business_analysis | product_ops_analysis | framework_quick_card | business_model_eval |
-| 是否进入/是否做/战略选择 | 战略分析 | strategy_analysis | business_analysis, product_ops_analysis | framework_quick_card | strategy_memo |
-| 市场规模/TAM/竞争格局 | 市场/战略分析 | strategy_analysis | business_analysis | framework_quick_card | strategy_memo |
-| 流程低效/协同问题/组织治理 | 流程优化 | process_analysis | data_analysis | framework_quick_card | process_diagnosis |
-| 财报/现金流/利润/风险/排雷 | 财报分析 | finance_industry_analysis | business_analysis | framework_quick_card | finance_risk_report |
-| 估值/是否值得投 | 投资分析 | finance_industry_analysis, scenario_sensitivity_analysis | strategy_analysis | framework_quick_card | finance_risk_report + scenario_analysis_report |
-| 行业对标/行业特性 | 行业分析 | finance_industry_analysis, competitive_analysis | strategy_analysis | framework_quick_card | competitive_analysis_report |
-| 对比/和XX比/谁更强/对标 | 竞争对手对比 | competitive_analysis | business_analysis, finance_industry_analysis | framework_quick_card | competitive_analysis_report |
-| 未来预测/估值/情景/如果XX | 情景/敏感性分析 | scenario_sensitivity_analysis | finance_industry_analysis, strategy_analysis | framework_quick_card | scenario_analysis_report |
-| 行业建模/行业分析/金融/物流/游戏/广告/消费电子/尽调 | 行业商业建模 | industry_modeling | 视行业选辅助 playbook | industry_quick_card | industry_modeling_report |
-| 通用决策/多方案对比 | 决策支持 | 视具体问题 | 多 playbook 组合 | framework_quick_card | decision_memo |
+| 用户问题特征 | 主要任务类型 | 主 Playbook | 辅助 Playbook | L1 快速模板 | L2/L3 标准模板 | L3 倾向 |
+|------------|-------------|-----------|--------------|------------|--------------|--------|
+| 指标下降/上升/波动/异常 | 指标异动诊断 | data_analysis | business_analysis, product_ops_analysis | framework_quick_card | metric_diagnosis | — |
+| 留存/激活/PMF/增长瓶颈 | PMF/增长诊断 | product_ops_analysis | data_analysis, business_analysis | framework_quick_card | pmf_growth_report | — |
+| 商业模式/如何赚钱/UE/LTV/CAC | 商业模式评估 | business_analysis | product_ops_analysis | framework_quick_card | business_model_eval | ★ 推荐 L3 |
+| 是否进入/是否做/战略选择 | 战略分析 | strategy_analysis | business_analysis, product_ops_analysis | framework_quick_card | strategy_memo | ★ 推荐 L3 |
+| 市场规模/TAM/竞争格局 | 市场/战略分析 | strategy_analysis | business_analysis | framework_quick_card | strategy_memo | ★ 推荐 L3 |
+| 流程低效/协同问题/组织治理 | 流程优化 | process_analysis | data_analysis | framework_quick_card | process_diagnosis | — |
+| 财报/现金流/利润/风险/排雷 | 财报分析 | finance_industry_analysis | business_analysis | framework_quick_card | finance_risk_report | — |
+| 估值/是否值得投 | 投资分析 | finance_industry_analysis, scenario_sensitivity_analysis | strategy_analysis | framework_quick_card | finance_risk_report + scenario_analysis_report | ★ 推荐 L3 |
+| 行业对标/行业特性 | 行业分析 | finance_industry_analysis, competitive_analysis | strategy_analysis | framework_quick_card | competitive_analysis_report | ★ 推荐 L3 |
+| 对比/和XX比/谁更强/对标 | 竞争对手对比 | competitive_analysis | business_analysis, finance_industry_analysis | framework_quick_card | competitive_analysis_report | ★ 推荐 L3 |
+| 未来预测/估值/情景/如果XX | 情景/敏感性分析 | scenario_sensitivity_analysis | finance_industry_analysis, strategy_analysis | framework_quick_card | scenario_analysis_report | ★ 推荐 L3 |
+| 行业建模/行业分析/金融/物流/游戏/广告/消费电子/尽调 | 行业商业建模 | industry_modeling | 视行业选辅助 playbook | industry_quick_card | industry_modeling_report | ★ 推荐 L3 |
+| 通用决策/多方案对比 | 决策支持 | 视具体问题 | 多 playbook 组合 | framework_quick_card | decision_memo | — |
+
+★ 标记的任务类型：即使无"深度""尽调"等显式信号，也默认推荐 L3（Council 多视角价值大），在 Step 1 主动向用户确认深度。
 
 ## 混合型问题处理
 

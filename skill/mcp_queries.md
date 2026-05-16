@@ -19,6 +19,14 @@
 - 超时自动降级到 P2（训练数据 + WebSearch），不阻塞后续分析
 - 必查项超时后必须尝试 P2 补充，选查项超时可直接跳过
 
+### Council 触发时机（v1.9+）
+MCP 查询完成后，在 Step 4（分析推进）完成时触发 Council 审查：
+- **L2**：轻量 Council（Red Team 5 项 + 1-2 个 Bull/Bear），融入输出
+- **L3**：完整 Council（7 类谬误 + 全覆盖 Bull/Bear + Chairman），独立章节
+- **L1**：不触发 Council
+
+Council 审查依赖 MCP 查询获取的数据。当 MCP 不可用、数据置信度 <0.5 时，Council 审查仍可执行（审查逻辑推理而非数据），但须标注"数据层验证不足"。
+
 ---
 
 ## 检查 MCP 可用性
