@@ -128,7 +128,51 @@ senior_analyst 支持的所有数据源、能力范围、API key 需求与降级
 
 ---
 
-## 五、配置 API key
+## 五、交叉验证 & 置信度评分（v1.8+）
+
+### validate_financials 工具
+
+```
+validate_financials(identifier, period="annual", years=3)
+```
+
+输出：
+- **交叉验证**：对比 2 个数据源同字段数值，偏差 >10% 标记 warning，>25% 标记 critical
+- **三表勾稽**：
+  - 资产负债验证：Assets > Liabilities（负权益标记）
+  - 毛利合理性：Gross Profit ≤ Revenue
+  - 现金流质量：OCF/NI 关系
+- **异常检测**：
+  - 营收环比 >50% → warning
+  - 毛利率环比变动 >5pp → warning
+  - OCF/NI < 0.5 持续 2 期 → critical
+- **置信度**：综合评分 0.0-1.0
+
+### 置信度评分算法
+
+```
+confidence = 0.4 × source_agreement
+           + 0.2 × data_freshness
+           + 0.2 × completeness
+           - 0.2 × anomaly_penalty
+```
+
+| 因子 | 取值范围 | 说明 |
+|------|---------|------|
+| source_agreement | 0-1 | 多源一致率；单源默认 1.0 |
+| data_freshness | 0.3-1.0 | 实时=1.0, 缓存=0.8, 过期=0.5 |
+| completeness | 0-1 | revenue + net_income 为必要字段 |
+| anomaly_penalty | 0-0.5 | 每条异常扣 0.1，上限 0.5 |
+
+### company_financials 自动验证
+
+`company_financials` 工具自动附加：
+- `confidence` 字段：置信度评分
+- `cross_validation` 字段：双源偏差分析（若多源可用）
+
+---
+
+## 六、配置 API key
 
 ### 交互式（推荐）
 
@@ -169,7 +213,7 @@ SENIOR_ANALYST_COINGECKO_KEY="your-coingecko-pro-key"
 
 ---
 
-## 六、健康自检
+## 七、健康自检
 
 ```bash
 ./bin/senior_analyst-doctor

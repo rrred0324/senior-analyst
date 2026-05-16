@@ -19,8 +19,10 @@ from sources import (
     YFinanceSource, AkshareSource, EastmoneySource,
     WorldBankSource, StatsGovCNSource, CoinGeckoSource,
     FMPSource, AlphaVantageSource, NewsAPISource, FREDSource,
+    Validator,
 )
 from sources.config import build_source_registry, AVAILABLE_SOURCES, compute_timeouts
+from sources.base import ConfidenceScore
 
 mcp = FastMCP(
     "senior_analyst",
@@ -79,6 +81,8 @@ if FREDSource is not None:
 # Build source registry after all sources are initialized
 build_source_registry()
 
+_validator = Validator()
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,6 +127,25 @@ async def _run_with_fallback(sources_with_methods: list[tuple, str], timeout_bud
     return DataResult(success=False, error=last_error)
 
 
+async def _run_secondary(
+    sources_with_methods: list[tuple], exclude_source: str, timeout_budget: float = 6.0
+):
+    """Try sources EXCLUDING the one that already succeeded (for cross-validation).
+
+    Returns the first successful DataResult from a different source, or a failure.
+    """
+    filtered = [
+        (src, method, args)
+        for src, method, args in sources_with_methods
+        if src is not None and src.name != exclude_source
+    ]
+    if not filtered:
+        from sources.base import DataResult
+        return DataResult(success=False, error="No secondary source available")
+
+    return await _run_with_fallback(filtered, timeout_budget=timeout_budget)
+
+
 # --- MCP Tools ---
 
 @mcp.tool()
@@ -148,6 +171,24 @@ async def company_financials(identifier: str, period: str = "annual", years: int
         data = _to_dict(result.data)
         data["data_source"] = result.source
         data["fetched_at"] = _fetched_at()
+
+        # Cross-validate if we have multiple sources
+        confidence = _validator.build_confidence_for_tool(result)
+        if len(sources) >= 2:
+            try:
+                secondary = await _run_secondary(sources, exclude_source=result.source)
+                if secondary.has_data():
+                    cv = _validator.compare_sources([result, secondary])
+                    confidence = cv.confidence
+                    data["cross_validation"] = {
+                        "sources_compared": [result.source, secondary.source],
+                        "discrepancies": cv.discrepancies,
+                        "reconciled": cv.reconciled,
+                    }
+            except Exception:
+                pass
+
+        data["confidence"] = asdict(confidence)
         return json.dumps({"success": True, **data}, ensure_ascii=False, default=str)
 
     return json.dumps({
@@ -177,6 +218,10 @@ async def company_profile(identifier: str) -> str:
         data = _to_dict(result.data)
         data["data_source"] = result.source
         data["fetched_at"] = _fetched_at()
+
+        confidence = _validator.build_confidence_for_tool(result)
+        data["confidence"] = asdict(confidence)
+
         return json.dumps({"success": True, **data}, ensure_ascii=False, default=str)
 
     return json.dumps({
@@ -526,6 +571,95 @@ async def crypto_data(identifier: str, metrics: str = "price,marketcap,volume") 
         "error": result.error or "CoinGecko unavailable.",
         "suggestion": "Check spelling — common symbols: BTC, ETH, SOL, BNB, XRP. For lesser-known coins, use the CoinGecko id (e.g., 'avalanche-2' instead of 'AVAX').",
     }, ensure_ascii=False)
+
+
+@mcp.tool()
+async def validate_financials(identifier: str, period: str = "annual", years: int = 3) -> str:
+    """Cross-validate financial data from multiple sources with anomaly detection.
+    Performs three-statement reconciliation, detects outliers, and computes confidence scores.
+
+    Args:
+        identifier: Company name or ticker symbol
+        period: "annual" or "quarterly"
+        years: Number of years/quarters to validate (default 3)
+    """
+    sources = []
+    if _fmp:
+        sources.append((_fmp, "get_financials", {"identifier": identifier, "period": period, "years": years}))
+    sources.append((_eastmoney, "get_financials", {"identifier": identifier, "period": period, "years": years}))
+    sources.append((_akshare, "get_financials", {"identifier": identifier, "period": period, "years": years}))
+    sources.append((_yfinance, "get_financials", {"identifier": identifier, "period": period, "years": years}))
+    if _av:
+        sources.append((_av, "get_financials", {"identifier": identifier, "period": period, "years": years}))
+
+    if not sources:
+        return json.dumps({
+            "success": False, "identifier": identifier,
+            "error": "No data sources available for validation.",
+        }, ensure_ascii=False)
+
+    # Collect results from multiple sources
+    results = []
+    for source, method_name, args in sources[:3]:  # max 3 sources for speed
+        if source is None:
+            continue
+        try:
+            method = getattr(source, method_name, None)
+            if method is None:
+                continue
+            r = await method(**args)
+            if r.has_data():
+                results.append(r)
+                if len(results) >= 2:
+                    break  # 2 sources enough for cross-validation
+        except Exception:
+            continue
+
+    if not results:
+        return json.dumps({
+            "success": False, "identifier": identifier,
+            "error": "No financial data from any source.",
+        }, ensure_ascii=False)
+
+    # Cross-validate across sources
+    cv = _validator.compare_sources(results)
+
+    # Anomaly detection on the primary source
+    primary = results[0]
+    periods = []
+    currency = "USD"
+    if isinstance(primary.data, dict):
+        periods = primary.data.get("data", [])
+        currency = primary.data.get("currency", "USD")
+
+    anomalies = _validator.detect_anomalies(periods, currency)
+
+    # Three-statement reconciliation on latest period
+    reconciliations = []
+    if periods:
+        reconciliations = _validator.reconcile_statements(periods[0])
+
+    # Build confidence with anomaly info
+    confidence = cv.confidence
+    confidence.anomalies = [a.detail for a in anomalies]
+
+    output = {
+        "success": True,
+        "identifier": identifier,
+        "sources_used": [r.source for r in results],
+        "data_source": primary.source,
+        "fetched_at": _fetched_at(),
+        "confidence": asdict(confidence),
+        "cross_validation": {
+            "discrepancies": cv.discrepancies,
+            "reconciled_values": cv.reconciled,
+        },
+        "anomalies": [asdict(a) for a in anomalies],
+        "reconciliations": [asdict(r) for r in reconciliations],
+        "latest_period": periods[0] if periods else None,
+    }
+
+    return json.dumps(output, ensure_ascii=False, default=str)
 
 
 if __name__ == "__main__":

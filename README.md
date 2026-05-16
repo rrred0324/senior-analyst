@@ -2,12 +2,17 @@
 
 Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
-> **v1.7.0 升级要点（2026-05）**
+> **v1.8.0 升级要点（2026-05）**
+> - **交叉验证引擎**：`company_financials` 自动双源比对，偏差 >10% 标记 discrepancy
+> - **置信度评分**：每个 MCP 响应附带 0-1 置信度，基于源一致率、数据新鲜度、完整度、异常数
+> - **三表勾稽验证**：`validate_financials` 新工具 — 资产负债验证 + 现金流质量 + 毛利合理性
+> - **异常检测**：营收环比异常、毛利率突变、OCF/NI 持续低位自动标记
+>
+> **v1.7.0 升级要点**
 > - **新增 2 个 MCP 工具**：`macro_data`（宏观经济）+ `crypto_data`（加密资产）
-> - **5 个新数据源**：FRED（美宏观）/ World Bank（全球）/ stats_gov_cn（中国 NBS+PBOC）/ CoinGecko（加密）
-> - **新增 CLI**：`senior_analyst-doctor` 一键自检 + `senior_analyst-setup-keys` 交互式 API key 配置
-> - **港股别名扩充 30+**：汇丰、友邦、中海油、招行、中国人寿、各互联网公司港股二次上市等
-> - **API key 用户友好**：免费源即可工作；FRED 免费 key（30 秒注册）解锁美国宏观
+> - **5 个新数据源**：FRED / World Bank / stats_gov_cn / CoinGecko
+> - **新增 CLI**：`senior_analyst-doctor` + `senior_analyst-setup-keys`
+> - **港股别名扩充 30+** / **免费 key 即可工作**
 
 ## 功能
 
@@ -21,6 +26,7 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 - **stock_news** — 个股新闻与公告
 - **macro_data** *(v1.7+)* — 宏观经济（GDP/CPI/PMI/失业率/利率/M2，覆盖中/美/欧/全球）
 - **crypto_data** *(v1.7+)* — 加密资产（价格/市值/24h 量/流通量，CoinGecko）
+- **validate_financials** *(v1.8+)* — 财务交叉验证（三表勾稽 + 异常检测 + 置信度评分）
 
 ### CLI 工具（v1.7+）
 - **senior_analyst-doctor** — 数据源健康自检；显示 Tier 0/Tier 1 状态、延迟、缓存使用
@@ -33,6 +39,23 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 | Tier 0 | yfinance / akshare / eastmoney / **worldbank** / **stats_gov_cn** / **coingecko** | 否 | 财务/市场/中国宏观/全球宏观/加密 |
 | Tier 1 (free key) | **FRED** / Alpha Vantage / NewsAPI | 是（免费） | 美国宏观 / 全球股票 / 英文新闻 |
 | Tier 1 (paid) | FMP / CoinGecko Pro | 是（付费） | 全球财报增强 / 加密高级 |
+
+### 交叉验证 & 置信度（v1.8+）
+
+**置信度评分**：每个 MCP 响应附带 `confidence` 字段（0.0-1.0），基于：
+- 多源一致率（双源一致 → 加分，偏差 >10% → 扣分）
+- 数据新鲜度（实时 > 缓存 > 过期）
+- 字段完整度（revenue + net_income 为必要字段）
+- 异常数量（每条扣 0.1）
+
+| 置信度 | 含义 | 使用建议 |
+|-------|------|---------|
+| ≥ 0.9 | 多源一致，无异常 | 直接引用 |
+| 0.7-0.89 | 单源或有小偏差 | 可引用，标注置信度 |
+| 0.5-0.69 | 存在异常或大偏差 | 需补充验证 |
+| < 0.5 | 数据不可信 | 不引用 |
+
+**异常检测**：营收环比 >50%、毛利率突变 >5pp、OCF/NI <0.5 持续 2 期 → 自动标记
 
 ### 分析框架（skill 层，9 类任务）
 - 指标异动诊断

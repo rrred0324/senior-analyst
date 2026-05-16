@@ -239,6 +239,40 @@
 
 ---
 
+## 财务交叉验证（v1.8+）
+
+### L2 必查 [串行，依赖财报数据]
+```
+validate_financials(identifier, period, years)
+   → 三表勾稽验证 + 异常检测 + 置信度评分
+```
+
+### 置信度解读
+
+| confidence.score | 含义 | 使用建议 |
+|-----------------|------|---------|
+| ≥ 0.9 | 高置信：多源一致、无异常 | 直接引用数据 |
+| 0.7-0.89 | 中置信：单源或多源有小偏差 | 可引用，标注置信度 |
+| 0.5-0.69 | 低置信：存在异常或源间偏差大 | 需补充验证（WebSearch） |
+| < 0.5 | 不可信：数据缺失或严重矛盾 | 不引用，标注数据不足 |
+
+### 异常规则
+
+| 规则 | 阈值 | 级别 |
+|------|------|------|
+| 营收环比变动 | >50% QoQ | warning |
+| 毛利率环比变动 | >5pp | warning |
+| OCF/NI 持续低位 | <0.5 持续 2 期 | critical |
+| 源间数据偏差 | >10% deviation | warning |
+| 源间数据偏差 | >25% deviation | critical |
+
+### company_financials 置信度
+
+`company_financials` 自动附带 `confidence` 字段和 `cross_validation` 信息（若有多源可用）。
+`company_profile` 自动附带 `confidence` 字段。
+
+---
+
 ## 降级处理
 
 | 场景 | 处理 |

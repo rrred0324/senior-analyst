@@ -36,8 +36,11 @@ if has_fred():
     except Exception:
         pass
 
+from .validator import Validator
+
 __all__ = [
     "YFinanceSource", "AkshareSource", "EastmoneySource",
     "WorldBankSource", "StatsGovCNSource", "CoinGeckoSource",
     "FMPSource", "AlphaVantageSource", "NewsAPISource", "FREDSource",
+    "Validator",
 ]

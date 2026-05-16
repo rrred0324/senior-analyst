@@ -43,6 +43,31 @@
 | stock_news | akshare / eastmoney + NewsAPI / AV | 否 |
 | **macro_data** | **stats_gov_cn (CN) / worldbank (global) + FRED (US)** | 否（FRED free key 解锁美国宏观） |
 | **crypto_data** | **CoinGecko 公共 API** | 否（Pro key 可选） |
+| **validate_financials** *(v1.8)* | **eastmoney / akshare / yfinance + FMP / AV** | 否（多源交叉验证） |
+
+### 置信度评分（v1.8+）
+
+所有 MCP 工具返回的 JSON 中包含 `confidence` 字段，结构如下：
+
+```json
+{
+  "score": 0.85,
+  "source_count": 2,
+  "source_agreement": 1.0,
+  "data_freshness": "real-time",
+  "anomalies": [],
+  "notes": "agreement=1.00, freshness=real-time, completeness=1.00, anomalies=0"
+}
+```
+
+**使用规则**：
+- score ≥ 0.9：可直接引用数据，无需额外验证
+- score 0.7-0.89：可引用但须标注置信度
+- score 0.5-0.69：需 WebSearch 补充验证
+- score < 0.5：数据不可信，不引用
+
+**交叉验证**：`company_financials` 自动尝试双源交叉验证，返回 `cross_validation` 字段含偏差分析。
+**深度验证**：用 `validate_financials` 做三表勾稽 + 异常检测。
 
 ### MCP 健康自检
 

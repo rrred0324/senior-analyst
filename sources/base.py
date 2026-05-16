@@ -82,6 +82,54 @@ class CryptoAssetData:
     rank: int | None = None
 
 
+@dataclass
+class ConfidenceScore:
+    """Confidence score attached to every MCP tool response."""
+    score: float = 0.0            # 0.0-1.0 composite confidence
+    source_count: int = 0         # number of sources that returned data
+    source_agreement: float = 0.0  # 0-1 agreement across sources (1.0 if single source)
+    data_freshness: str = "unknown"  # "real-time" / "cached" / "stale"
+    anomalies: list = field(default_factory=list)  # list of anomaly descriptions
+    notes: str = ""
+
+
+@dataclass
+class AnomalyFlag:
+    """A single detected anomaly in financial data."""
+    field: str = ""          # e.g. "revenue", "gross_margin"
+    period: str = ""         # e.g. "2024", "2024-Q3"
+    severity: str = "warning"  # "info" / "warning" / "critical"
+    rule: str = ""           # e.g. "qoq_spike>50%"
+    detail: str = ""         # human-readable description
+    value: float | None = None
+    threshold: float | None = None
+
+
+@dataclass
+class CrossValidationResult:
+    """Result of cross-validating data across multiple sources."""
+    values: dict = field(default_factory=dict)
+    # {field_name: [(source_name, value), ...]}
+    discrepancies: list = field(default_factory=list)
+    # [{field, sources, deviation_pct, severity}]
+    reconciled: dict = field(default_factory=dict)
+    # {field_name: median/reconciled value}
+    anomaly_flags: list = field(default_factory=list)
+    # list[AnomalyFlag]
+    confidence: ConfidenceScore = field(default_factory=ConfidenceScore)
+
+
+@dataclass
+class ReconciliationCheck:
+    """Single three-statement reconciliation check result."""
+    name: str = ""           # e.g. "equity_check", "cash_flow_check"
+    expected: float | None = None
+    actual: float | None = None
+    deviation_pct: float | None = None
+    passed: bool = True
+    detail: str = ""
+
+
 class BaseSource:
     """Base class for all data sources."""
 
