@@ -19,7 +19,7 @@ from sources import (
     YFinanceSource, AkshareSource, EastmoneySource,
     WorldBankSource, StatsGovCNSource, CoinGeckoSource,
     FMPSource, AlphaVantageSource, NewsAPISource, FREDSource,
-    Validator,
+    Validator, ValuationSource,
 )
 from sources.config import build_source_registry, AVAILABLE_SOURCES, compute_timeouts
 from sources.base import ConfidenceScore
@@ -82,6 +82,13 @@ if FREDSource is not None:
 build_source_registry()
 
 _validator = Validator()
+
+# Valuation source aggregates data from other sources
+_valuation = ValuationSource(
+    financials_sources=[_fmp, _eastmoney, _akshare, _yfinance, _av],
+    macro_source=_fred or _worldbank,
+    peers_sources=[_fmp, _yfinance, _eastmoney],
+)
 
 logger = logging.getLogger(__name__)
 
@@ -242,100 +249,56 @@ async def competitor_compare(identifier: str, metrics: str = "revenue,net_margin
     peers_data = []
     source = "mixed"
 
+    async def _fetch_company_brief(src, ticker: str) -> dict:
+        """Fetch profile + financials for a single company, returning a brief dict."""
+        brief = {"name": ticker, "ticker": ticker}
+        profile_result = await src.get_profile(ticker)
+        fin_result = await src.get_financials(ticker, years=1)
+        if profile_result.has_data():
+            pp = _to_dict(profile_result.data)
+            brief["name"] = pp.get("name", ticker)
+            brief["industry"] = pp.get("industry", "")
+            brief["sector"] = pp.get("sector", "")
+            brief["ps_ratio"] = pp.get("ps_ratio")
+        if fin_result.has_data():
+            latest = fin_result.data.get("data", [{}])[0] if isinstance(fin_result.data, dict) and fin_result.data.get("data") else {}
+            rev = latest.get("revenue")
+            ni = latest.get("net_income")
+            brief["revenue"] = rev
+            brief["net_margin"] = round(ni / rev, 4) if rev and ni and rev != 0 else None
+        return brief
+
     # L1: FMP (best peer data when available)
     if _fmp:
         try:
-            profile_result = await _fmp.get_profile(identifier)
             peers_result = await _fmp.get_peers(identifier)
-            if profile_result.has_data() or peers_result.has_data():
-                profile = _to_dict(profile_result.data) if profile_result.has_data() else {}
-                target_data = {
-                    "name": profile.get("name", identifier),
-                    "ticker": profile.get("ticker", identifier),
-                    "industry": profile.get("industry", ""),
-                    "sector": profile.get("sector", ""),
-                }
-                fin_result = await _fmp.get_financials(identifier, years=1)
-                if fin_result.has_data():
-                    latest = fin_result.data.get("data", [{}])[0] if isinstance(fin_result.data, dict) and fin_result.data.get("data") else {}
-                    revenue = latest.get("revenue")
-                    net_income = latest.get("net_income")
-                    target_data["revenue"] = revenue
-                    target_data["net_margin"] = round(net_income / revenue, 4) if revenue and net_income and revenue != 0 else None
-                    target_data["ps_ratio"] = profile.get("ps_ratio")
-
-                peer_tickers = []
-                if peers_result.has_data():
-                    peer_tickers = peers_result.data.get("peer_tickers", [])
-
-                for pt in peer_tickers[:5]:
-                    p_profile = await _fmp.get_profile(pt)
-                    p_fin = await _fmp.get_financials(pt, years=1)
-                    peer = {"name": pt, "ticker": pt}
-                    if p_profile.has_data():
-                        pp = _to_dict(p_profile.data)
-                        peer["name"] = pp.get("name", pt)
-                        peer["industry"] = pp.get("industry", "")
-                    if p_fin.has_data():
-                        latest = p_fin.data.get("data", [{}])[0] if isinstance(p_fin.data, dict) and p_fin.data.get("data") else {}
-                        rev = latest.get("revenue")
-                        ni = latest.get("net_income")
-                        peer["revenue"] = rev
-                        peer["net_margin"] = round(ni / rev, 4) if rev and ni and rev != 0 else None
-                    if p_profile.has_data():
-                        pp = _to_dict(p_profile.data)
-                        peer["ps_ratio"] = pp.get("ps_ratio")
-                    peers_data.append(peer)
-
-                source = "fmp"
-        except Exception:
-            pass
-
-    # L2: yfinance (if FMP didn't work)
-    if not peers_data:
-        profile_result = await _yfinance.get_profile(identifier)
-        peers_result = await _yfinance.get_peers(identifier)
-
-        if profile_result.has_data() or peers_result.has_data():
-            profile = _to_dict(profile_result.data) if profile_result.has_data() else {}
-            target_data = {
-                "name": profile.get("name", identifier),
-                "ticker": profile.get("ticker", identifier),
-                "industry": profile.get("industry", ""),
-                "sector": profile.get("sector", ""),
-            }
-            fin_result = await _yfinance.get_financials(identifier, years=1)
-            if fin_result.has_data():
-                latest = fin_result.data.get("data", [{}])[0] if isinstance(fin_result.data, dict) and fin_result.data.get("data") else {}
-                revenue = latest.get("revenue")
-                net_income = latest.get("net_income")
-                target_data["revenue"] = revenue
-                target_data["net_margin"] = round(net_income / revenue, 4) if revenue and net_income and revenue != 0 else None
-                target_data["ps_ratio"] = profile.get("ps_ratio")
+            target_data = await _fetch_company_brief(_fmp, identifier)
 
             peer_tickers = []
             if peers_result.has_data():
                 peer_tickers = peers_result.data.get("peer_tickers", [])
 
             for pt in peer_tickers[:5]:
-                p_profile = await _yfinance.get_profile(pt)
-                p_fin = await _yfinance.get_financials(pt, years=1)
-                peer = {"name": pt, "ticker": pt}
-                if p_profile.has_data():
-                    pp = _to_dict(p_profile.data)
-                    peer["name"] = pp.get("name", pt)
-                    peer["industry"] = pp.get("industry", "")
-                if p_fin.has_data():
-                    latest = p_fin.data.get("data", [{}])[0] if isinstance(p_fin.data, dict) and p_fin.data.get("data") else {}
-                    rev = latest.get("revenue")
-                    ni = latest.get("net_income")
-                    peer["revenue"] = rev
-                    peer["net_margin"] = round(ni / rev, 4) if rev and ni and rev != 0 else None
-                if p_profile.has_data():
-                    pp = _to_dict(p_profile.data)
-                    peer["ps_ratio"] = pp.get("ps_ratio")
-                peers_data.append(peer)
+                peers_data.append(await _fetch_company_brief(_fmp, pt))
 
+            if target_data.get("revenue") or peers_data:
+                source = "fmp"
+        except Exception:
+            pass
+
+    # L2: yfinance (if FMP didn't work)
+    if not peers_data:
+        peers_result = await _yfinance.get_peers(identifier)
+        target_data = await _fetch_company_brief(_yfinance, identifier)
+
+        peer_tickers = []
+        if peers_result.has_data():
+            peer_tickers = peers_result.data.get("peer_tickers", [])
+
+        for pt in peer_tickers[:5]:
+            peers_data.append(await _fetch_company_brief(_yfinance, pt))
+
+        if target_data.get("revenue") or peers_data:
             source = "yfinance"
 
     # L3: eastmoney peers (China companies)
@@ -660,6 +623,27 @@ async def validate_financials(identifier: str, period: str = "annual", years: in
     }
 
     return json.dumps(output, ensure_ascii=False, default=str)
+
+
+@mcp.tool()
+async def company_valuation(identifier: str, method: str = "dcf") -> str:
+    """Get valuation parameters for a company (WACC components, growth rates, peer multiples).
+
+    Args:
+        identifier: Company name or ticker symbol
+        method: "dcf", "comps", "ddm", or "all" (default: "dcf")
+    """
+    result = await _valuation.get_valuation(identifier, method=method)
+    if result.has_data():
+        data = _to_dict(result.data)
+        data["data_source"] = result.source
+        data["fetched_at"] = _fetched_at()
+        return json.dumps({"success": True, **data}, ensure_ascii=False, default=str)
+
+    return json.dumps({
+        "success": False, "identifier": identifier,
+        "error": result.error or "Valuation parameters unavailable.",
+    }, ensure_ascii=False)
 
 
 if __name__ == "__main__":

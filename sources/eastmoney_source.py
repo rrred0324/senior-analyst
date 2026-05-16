@@ -22,6 +22,7 @@ EM_STOCK_INFO_API = "https://push2.eastmoney.com/api/qt/stock/get"
 
 class EastmoneySource(BaseSource):
     name = "eastmoney"
+    use_cache = True
 
     async def get_financials(
         self, identifier: str, period: str = "annual", years: int = 3
@@ -66,17 +67,25 @@ class EastmoneySource(BaseSource):
                     _revenue = _em_to_float(item.get("TOTAL_OPERATE_INCOME"))
                     _operate_cost = _em_to_float(item.get("OPERATE_COST"))
                     _gross = (_revenue - _operate_cost) if (_revenue is not None and _operate_cost is not None) else None
-                    result_data.append({
+                    _ocf = _em_to_float(item.get("NETCASH_OPERATE"))
+                    _capex = _em_to_float(item.get("CCE_INVEST_ASSETFIX"))
+                    _fcf = (_ocf + _capex) if (_ocf is not None and _capex is not None) else None
+                    row = {
                         "year": _em_extract_year(item.get("REPORT_DATE") or item.get("NOTICE_DATE", "")),
                         "quarter": "",
                         "revenue": _revenue,
                         "gross_profit": _gross,
                         "net_income": _em_to_float(item.get("PARENT_NETPROFIT")),
-                        "operating_cash_flow": _em_to_float(item.get("NETCASH_OPERATE")),
+                        "operating_cash_flow": _ocf,
                         "total_assets": _em_to_float(item.get("TOTAL_ASSETS")),
                         "total_liabilities": _em_to_float(item.get("TOTAL_LIABILITIES")),
+                        "operating_expenses": _em_to_float(item.get("TOTAL_OPERATE_EXPENSE")),
+                        "ebitda": _em_to_float(item.get("EBITDA")),
                         "currency": "CNY",
-                    })
+                    }
+                    if _fcf is not None:
+                        row["free_cash_flow"] = _fcf
+                    result_data.append(row)
 
                 if not result_data or all(d["year"] == 0 for d in result_data):
                     return DataResult(success=False, error="No valid financial rows parsed")

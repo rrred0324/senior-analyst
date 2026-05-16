@@ -1,7 +1,13 @@
 """Base class for data sources."""
 
+import functools
+import logging
 from dataclasses import dataclass, field
 from typing import Any
+
+from .config import cache_key, get_cache
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -33,6 +39,13 @@ class FinancialData:
     operating_cash_flow: float | None = None
     total_assets: float | None = None
     total_liabilities: float | None = None
+    shares_outstanding: float | None = None
+    eps: float | None = None
+    operating_expenses: float | None = None
+    rd_expenses: float | None = None
+    free_cash_flow: float | None = None
+    dividends: float | None = None
+    ebitda: float | None = None
     currency: str = "USD"
 
 
@@ -83,6 +96,39 @@ class CryptoAssetData:
 
 
 @dataclass
+class ValuationData:
+    """Aggregated valuation parameters for DCF/Comps/DDM analysis."""
+    identifier: str = ""
+    # WACC components
+    risk_free_rate: float | None = None       # 10Y government bond yield (%)
+    beta: float | None = None                 # stock beta
+    equity_risk_premium: float | None = None  # by region (%)
+    wacc: float | None = None                 # computed WACC (%)
+    # Growth rates
+    revenue_cagr_3y: float | None = None      # 3-year revenue CAGR (%)
+    revenue_cagr_5y: float | None = None      # 5-year revenue CAGR (%)
+    earnings_cagr_3y: float | None = None     # 3-year earnings CAGR (%)
+    # FCF / DCF inputs
+    latest_fcf: float | None = None
+    fcf_margin: float | None = None           # FCF / revenue (%)
+    shares_outstanding: float | None = None
+    # Dividend inputs
+    dividend_yield: float | None = None       # trailing dividend yield (%)
+    payout_ratio: float | None = None         # dividends / net income (%)
+    dividend_cagr_5y: float | None = None     # 5-year dividend CAGR (%)
+    # Market data
+    market_cap: float | None = None
+    current_price: float | None = None
+    # Peer multiples (median of peers)
+    peer_pe_median: float | None = None
+    peer_ps_median: float | None = None
+    peer_ev_ebitda_median: float | None = None
+    # Metadata
+    currency: str = "USD"
+    region: str = "US"
+
+
+@dataclass
 class ConfidenceScore:
     """Confidence score attached to every MCP tool response."""
     score: float = 0.0            # 0.0-1.0 composite confidence
@@ -130,10 +176,62 @@ class ReconciliationCheck:
     detail: str = ""
 
 
+def _make_cached_method(original, method_name: str):
+    """Wrap an async source method with TTLCache lookup/store."""
+    category = BaseSource._CACHE_CATEGORY.get(method_name, "financials")
+
+    @functools.wraps(original)
+    async def wrapper(self, *args, **kwargs):
+        cache = get_cache(category)
+        key = cache_key(category, self.name, method_name, *args, *sorted(kwargs.items()))
+        if key in cache:
+            logger.debug(f"Cache hit: {key}")
+            return cache[key]
+        result = await original(self, *args, **kwargs)
+        cache[key] = result
+        return result
+
+    return wrapper
+
+
 class BaseSource:
-    """Base class for all data sources."""
+    """Base class for all data sources.
+
+    Subclasses that want caching should set ``use_cache = True``.
+    When enabled, all async ``get_*`` method calls are automatically
+    wrapped with TTLCache lookup/store via config.cache_key / config.get_cache.
+    """
 
     name: str = "base"
+    use_cache: bool = False
+
+    # Map method names to cache categories
+    _CACHE_CATEGORY = {
+        "get_financials": "financials",
+        "get_profile": "profile",
+        "get_peers": "peers",
+        "get_market_data": "market",
+        "get_news": "news",
+        "get_stock_news": "stock_news",
+        "get_macro_data": "macro",
+        "get_crypto_data": "crypto",
+        "get_industry_data": "industry",
+        "get_valuation": "valuation",
+    }
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not getattr(cls, "use_cache", False):
+            return
+        for method_name in BaseSource._CACHE_CATEGORY:
+            original = getattr(cls, method_name, None)
+            if original is None or not callable(original):
+                continue
+            if hasattr(original, "_cache_wrapped"):
+                continue
+            wrapped = _make_cached_method(original, method_name)
+            wrapped._cache_wrapped = True
+            setattr(cls, method_name, wrapped)
 
     async def get_financials(
         self, identifier: str, period: str = "annual", years: int = 3

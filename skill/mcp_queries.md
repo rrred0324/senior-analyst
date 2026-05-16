@@ -226,6 +226,37 @@ Council 审查依赖 MCP 查询获取的数据。当 MCP 不可用、数据置�
 
 ---
 
+## 估值分析（v2.0+）
+
+### L2 必查 [并行]
+```
+1. company_valuation(identifier, method="all")
+   → WACC 组件、增长率、FCF、同行倍数、股息数据
+2. company_financials(identifier, period="annual", years=5)
+   → 5 年历史数据（FCF 趋势、增长率计算）
+3. competitor_compare(identifier)
+   → 同行 PE/PS/EV-EBITDA 倍数（Comps 估值）
+```
+
+### L3 选查 [并行]
+```
+4. company_profile(identifier)
+   → beta、市值、行业定位
+5. macro_data(indicator="interest_rate" | "treasury_10y", region)
+   → 无风险利率（如 company_valuation 未覆盖）
+6. news_search(identifier + "估值" | identifier + "valuation", limit=5)
+   → 近期估值相关事件/催化剂
+```
+
+**关键验证**：
+- DCF 必需：FCF ≥2 年 + WACC + 增长率假设
+- Comps 必需：≥3 家可比公司倍数
+- DDM 必需：≥3 年股息历史 + 增长率
+- 数据不足时：DCF 权重降低，Comps 权重提升
+- 假设必须标注来源（数据/经验/推断）
+
+---
+
 ## 加密资产/Web3 分析
 
 ### 必查

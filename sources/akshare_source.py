@@ -18,6 +18,7 @@ def _try_import_akshare():
 
 class AkshareSource(BaseSource):
     name = "akshare"
+    use_cache = True
 
     def __init__(self):
         self._ak = None
@@ -65,17 +66,25 @@ class AkshareSource(BaseSource):
                 _rev = _to_float(row.get("营业收入"))
                 _cost = _to_float(row.get("营业成本"))
                 _gross = (_rev - _cost) if (_rev is not None and _cost is not None) else None
-                data.append({
+                _ni = _to_float(row.get("净利润"))
+                _ocf = _to_float(row.get("经营活动产生的现金流量净额"))
+                _ta = _to_float(row.get("总资产"))
+                _tl = _to_float(row.get("总负债"))
+                row_data = {
                     "year": year,
                     "quarter": "",
                     "revenue": _rev,
                     "gross_profit": _gross,
-                    "net_income": _to_float(row.get("净利润")),
-                    "operating_cash_flow": None,
-                    "total_assets": None,
-                    "total_liabilities": None,
+                    "net_income": _ni,
+                    "operating_cash_flow": _ocf,
+                    "total_assets": _ta,
+                    "total_liabilities": _tl,
                     "currency": "CNY",
-                })
+                }
+                _eps = _to_float(row.get("基本每股收益"))
+                if _eps is not None:
+                    row_data["eps"] = _eps
+                data.append(row_data)
 
             if not data:
                 return DataResult(success=False, error="No financial rows parsed")

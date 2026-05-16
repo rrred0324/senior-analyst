@@ -67,6 +67,7 @@ def resolve_ticker(identifier: str) -> str | None:
 
 class YFinanceSource(BaseSource):
     name = "yfinance"
+    use_cache = True
 
     async def get_financials(
         self, identifier: str, period: str = "annual", years: int = 3
@@ -103,24 +104,40 @@ class YFinanceSource(BaseSource):
                         revenue = _safe_float(income_stmt, "Total Revenue", col)
                         gross_profit = _safe_float(income_stmt, "Gross Profit", col)
                         net_income = _safe_float(income_stmt, "Net Income", col)
+                        operating_expenses = _safe_float(income_stmt, "Operating Expense", col)
+                        rd_expenses = _safe_float(income_stmt, "Research Development", col)
+                        ebitda = _safe_float(income_stmt, "EBITDA", col)
+                        eps_val = _safe_float(income_stmt, "Basic EPS", col)
 
                         ocf = None
+                        fcf = None
+                        capex = None
+                        dividends_val = None
                         if cashflow is not None and not cashflow.empty and col in cashflow.columns:
                             ocf = _safe_float(cashflow, "Operating Cash Flow", col)
+                            capex = _safe_float(cashflow, "Capital Expenditure", col)
+                            dividends_val = _safe_float(cashflow, "Cash Dividends Paid", col)
+                            if ocf is not None and capex is not None:
+                                fcf = ocf + capex  # capex is negative in yfinance
 
                         total_assets = None
                         total_liabilities = None
+                        shares_out = None
                         if balance_sheet is not None and not balance_sheet.empty and col in balance_sheet.columns:
                             total_assets = _safe_float(balance_sheet, "Total Assets", col)
                             total_liabilities = _safe_float(balance_sheet, "Total Liabilities Net Minority Interest", col)
                             if total_liabilities is None:
                                 total_liabilities = _safe_float(balance_sheet, "Total Liabilities", col)
+                            shares_out = _safe_float(balance_sheet, "Ordinary Shares Number", col)
 
                         data.append(FinancialData(
                             year=year, quarter=quarter, revenue=revenue,
                             gross_profit=gross_profit, net_income=net_income,
                             operating_cash_flow=ocf, total_assets=total_assets,
                             total_liabilities=total_liabilities, currency=currency,
+                            shares_outstanding=shares_out, eps=eps_val,
+                            operating_expenses=operating_expenses, rd_expenses=rd_expenses,
+                            free_cash_flow=fcf, dividends=dividends_val, ebitda=ebitda,
                         ))
 
                 if not data:
@@ -225,7 +242,7 @@ def _safe_float(df: Any, label: str, col: Any) -> float | None:
 
 
 def _fd_to_dict(fd: FinancialData) -> dict:
-    return {
+    d = {
         "year": fd.year,
         "quarter": fd.quarter,
         "revenue": fd.revenue,
@@ -236,3 +253,9 @@ def _fd_to_dict(fd: FinancialData) -> dict:
         "total_liabilities": fd.total_liabilities,
         "currency": fd.currency,
     }
+    for key in ("shares_outstanding", "eps", "operating_expenses", "rd_expenses",
+                "free_cash_flow", "dividends", "ebitda"):
+        val = getattr(fd, key, None)
+        if val is not None:
+            d[key] = val
+    return d

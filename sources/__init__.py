@@ -37,10 +37,11 @@ if has_fred():
         pass
 
 from .validator import Validator
+from .valuation_source import ValuationSource
 
 __all__ = [
     "YFinanceSource", "AkshareSource", "EastmoneySource",
     "WorldBankSource", "StatsGovCNSource", "CoinGeckoSource",
     "FMPSource", "AlphaVantageSource", "NewsAPISource", "FREDSource",
-    "Validator",
+    "Validator", "ValuationSource",
 ]

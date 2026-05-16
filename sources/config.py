@@ -113,6 +113,7 @@ def build_source_registry():
         "stock_news": [],
         "macro_data": [],
         "crypto_data": [],
+        "company_valuation": [],
     }
 
     # FMP (Tier 1, needs key)
@@ -183,6 +184,7 @@ CACHE_TTL = {
     "peers": 86400,         # 24 hours
     "macro": 21600,         # 6 hours (macro data updates slowly)
     "crypto": 60,           # 1 minute (crypto moves fast)
+    "valuation": 3600,      # 1 hour (derived from financials)
 }
 
 caches = {k: TTLCache(maxsize=100, ttl=v) for k, v in CACHE_TTL.items()}

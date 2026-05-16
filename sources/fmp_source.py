@@ -112,7 +112,7 @@ class FMPSource(BaseSource):
             year = item.get("calendarYear", "") or str(item.get("date", ""))[:4]
             bs = bs_data[i] if bs_data and isinstance(bs_data, list) and i < len(bs_data) else {}
             cf = cf_data[i] if cf_data and isinstance(cf_data, list) and i < len(cf_data) else {}
-            result_rows.append({
+            row = {
                 "year": int(year) if year.isdigit() else 0,
                 "quarter": "",
                 "revenue": item.get("revenue"),
@@ -121,8 +121,19 @@ class FMPSource(BaseSource):
                 "operating_cash_flow": cf.get("operatingCashFlow"),
                 "total_assets": bs.get("totalAssets"),
                 "total_liabilities": bs.get("totalLiabilities"),
+                "shares_outstanding": item.get("weightedAverageShsOut"),
+                "eps": item.get("eps"),
+                "operating_expenses": item.get("operatingExpenses"),
+                "rd_expenses": item.get("researchAndDevelopmentExpenses"),
+                "ebitda": item.get("ebitda"),
+                "dividends": cf.get("dividendsPaid"),
                 "currency": item.get("reportedCurrency", "USD"),
-            })
+            }
+            capex = cf.get("capitalExpenditure")
+            ocf = cf.get("operatingCashFlow")
+            if ocf is not None and capex is not None:
+                row["free_cash_flow"] = ocf + capex
+            result_rows.append(row)
 
         if not result_rows:
             return DataResult(success=False, error="FMP: no financial rows parsed")

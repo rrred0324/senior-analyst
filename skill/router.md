@@ -66,6 +66,7 @@ D) 够了，不需要深入
 | 市场规模/TAM/竞争格局 | 市场/战略分析 | strategy_analysis | business_analysis | framework_quick_card | strategy_memo | ★ 推荐 L3 |
 | 流程低效/协同问题/组织治理 | 流程优化 | process_analysis | data_analysis | framework_quick_card | process_diagnosis | — |
 | 财报/现金流/利润/风险/排雷 | 财报分析 | finance_industry_analysis | business_analysis | framework_quick_card | finance_risk_report | — |
+| 估值/值多少钱/贵不贵/内在价值 | 估值分析 | valuation | finance_industry_analysis, scenario_sensitivity_analysis, competitive_analysis | framework_quick_card | valuation_report | ★ 推荐 L3 |
 | 估值/是否值得投 | 投资分析 | finance_industry_analysis, scenario_sensitivity_analysis | strategy_analysis | framework_quick_card | finance_risk_report + scenario_analysis_report | ★ 推荐 L3 |
 | 行业对标/行业特性 | 行业分析 | finance_industry_analysis, competitive_analysis | strategy_analysis | framework_quick_card | competitive_analysis_report | ★ 推荐 L3 |
 | 对比/和XX比/谁更强/对标 | 竞争对手对比 | competitive_analysis | business_analysis, finance_industry_analysis | framework_quick_card | competitive_analysis_report | ★ 推荐 L3 |
@@ -190,6 +191,9 @@ D) 够了，不需要深入
 
 ### 触发「情景/敏感性分析」
 关键词：未来预测、估值、情景、如果XX会怎样、最好情况、最坏情况、Bull、Bear、敏感、假设变化、稳健性
+
+### 触发「估值分析」
+关键词：估值、值多少钱、贵不贵、内在价值、DCF、折现、自由现金流、WACC、可比公司、倍数、PE估值、安全边际、折价、溢价
 
 ### 触发「行业商业建模」
 关键词：行业建模、行业分析、商业模式拆解、行业研究、行业模板、
