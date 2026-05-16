@@ -18,7 +18,7 @@
 | 优先级 | 工具 | 适用场景 | 限制 |
 |--------|------|---------|------|
 | P0 | 用户直接提供 | 内部数据、私有数据、非公开信息 | 依赖用户输入 |
-| P1 | senior_analyst MCP 工具 | 结构化财务/市场/竞品数据查询（company_financials, company_profile, competitor_compare, market_data, news_search） | 需 MCP server 已配置；eastmoney 为首选源 |
+| P1 | senior_analyst MCP 工具 | 结构化财务/市场/竞品/宏观/加密数据查询（company_financials, company_profile, competitor_compare, market_data, news_search, industry_data, stock_news, **macro_data**, **crypto_data**） | 需 MCP server 已配置；多源 fallback 自动执行 |
 | P2 | /browse (gstack) | 复杂网页浏览、年报下载、多页数据交叉验证 | 需要浏览器环境 |
 | P3 | WebSearch | 快速事实查询、新闻搜索、市场数据检索 | 可能返回空结果或过时信息 |
 | P4 | WebFetch | 已知 URL 的直接访问（年报、SEC filing、数据库） | 不适用于需认证的页面 |
@@ -27,8 +27,35 @@
 **使用规则**：
 - P0-P4 统称「实时数据源」，P5 为「训练数据源」
 - **senior_analyst MCP 工具（P1）为首选实时数据源**，提供结构化查询，比搜索式工具（P2-P4）更可靠
-- 凡涉及具体数字（营收、利润、市占率、用户数等），**禁止**仅凭训练数据给出确定性结论
+- 凡涉及具体数字（营收、利润、市占率、用户数、宏观指标、加密价格等），**禁止**仅凭训练数据给出确定性结论
 - 训练数据仅用于：行业常识、分析框架、经验阈值、历史已验证事实
+
+### MCP 工具矩阵（v1.7+）
+
+| 工具 | 主要数据源 | 是否需 key |
+|------|----------|----------|
+| company_financials | eastmoney / akshare / yfinance + FMP / AV | 否（key 增强） |
+| company_profile | 同上 | 否 |
+| competitor_compare | yfinance + FMP | 否（FMP 大幅增强） |
+| market_data | eastmoney / akshare | 否 |
+| news_search | akshare / eastmoney + NewsAPI | 否（NewsAPI 增强英文） |
+| industry_data | eastmoney / akshare | 否 |
+| stock_news | akshare / eastmoney + NewsAPI / AV | 否 |
+| **macro_data** | **stats_gov_cn (CN) / worldbank (global) + FRED (US)** | 否（FRED free key 解锁美国宏观） |
+| **crypto_data** | **CoinGecko 公共 API** | 否（Pro key 可选） |
+
+### MCP 健康自检
+
+任何时候可运行 `senior_analyst-doctor` 自检 Tier 0/Tier 1 数据源状态。当用户报告"数据源不可用/不准确"时，**第一步**就是建议运行此命令。
+
+### 配置 API key
+
+`senior_analyst-setup-keys` 提供交互式向导。可选 key 及其解锁能力：
+- **FRED**（免费，30 秒注册）→ 美国宏观经济数据
+- **FMP**（付费，14 美元/月起）→ 全球公司财报增强 + 同业推荐
+- **Alpha Vantage**（免费，25 req/day）→ 全球股票基本面
+- **NewsAPI**（免费，100 req/day dev）→ 英文新闻
+- **CoinGecko Pro**（付费可选）→ 加密高级数据
 
 ---
 
@@ -118,6 +145,31 @@
 - 卖方分析师预测
 - 宏观经济数据
 - 公司指引（guidance）
+
+### 宏观经济分析（v1.7+）
+
+必要数据（用 `macro_data` 工具采集）：
+- GDP 增速时间序列（至少 3 年）
+- CPI / PPI 通胀指标（最近 12-24 个月）
+- 失业率（最近 12 个月）
+
+补充数据：
+- 利率水平（10Y 国债、政策利率）
+- M2 货币供应增速
+- PMI 工业景气
+- 进出口/贸易差额
+
+**支持的 region**：US, CN, EU, JP, UK, DE, FR, IN, global。US 推荐配 FRED key 解锁高频数据。
+
+### 加密资产/Web3 分析
+
+必要数据（用 `crypto_data` 工具采集）：
+- 头部币种价格、市值、24h 量
+- 流通量、最大供应（如有）
+
+补充数据：
+- 监管/ETF 资金流向新闻（用 `news_search`）
+- 链上数据（TVL、地址数）→ 暂不在 MCP 范围，需 /browse 补充
 
 ---
 

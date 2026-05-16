@@ -182,6 +182,63 @@
 
 ---
 
+## 宏观经济分析（v1.7+）
+
+### L2 必查 [并行]
+```
+1. macro_data(indicator="gdp" | "gdp_growth", region, years=5)
+   → 经济增长趋势
+2. macro_data(indicator="cpi" | "cpi_yoy", region, years=3)
+   → 通胀水平
+3. macro_data(indicator="unemployment", region, years=3)
+   → 就业市场
+```
+
+### L3 选查 [并行]
+```
+4. macro_data(indicator="interest_rate" | "treasury_10y", region)
+   → 利率环境
+5. macro_data(indicator="m2", region)
+   → 货币供给
+6. macro_data(indicator="ppi" | "pmi", region)
+   → 工业景气
+7. macro_data(indicator="exports" | "imports" | "trade_balance", region)
+   → 贸易状况
+```
+
+**支持的 region**：
+- `US`：FRED（需 free key）→ World Bank 兜底
+- `CN`：stats_gov_cn（NBS/PBOC via akshare）→ World Bank 兜底
+- `EU` / `JP` / `UK` / `DE` / `FR` / `IN` / `global`：World Bank（年度数据）
+
+**关键验证**：
+- 至少覆盖 3 年时间序列
+- 月度数据（CPI/PMI/失业率）优先于年度
+- 政策窗口期（Fed FOMC、人行 LPR 调整）需 news_search 交叉验证
+
+---
+
+## 加密资产/Web3 分析
+
+### 必查
+```
+1. crypto_data(identifier="BTC" | "ETH" | ...)
+   → 价格、市值、24h 量、流通量、排名
+```
+
+### 选查
+```
+2. news_search("[token] regulation" | "[token] etf", limit=5)
+   → 监管/资金流入信号
+```
+
+**关键验证**：
+- 头部币种（BTC/ETH/SOL/BNB/USDT）支持 symbol 直接查询
+- 长尾币种用 CoinGecko id（如 `avalanche-2` 而非 `AVAX`）
+- 默认 30 req/min 限速；配 CoinGecko Pro key 可解锁
+
+---
+
 ## 降级处理
 
 | 场景 | 处理 |
@@ -193,3 +250,6 @@
 | MCP 返回部分数据 | 用已获取部分 + P2 补充缺失 |
 | eastmoney 不可用 | MCP 内部自动降级到 akshare → yfinance |
 | 所有 MCP 源失败 | 提示用户数据获取受限，建议 WebSearch 补充 |
+| **macro_data 全部失败** | 提示运行 `senior_analyst-doctor` 自检；若 region=US 建议配 FRED key |
+| **crypto_data 失败** | 多为 CoinGecko 限速；30 秒后重试或配 Pro key |
+| **doctor 报 Tier 0 失败** | 检查网络；akshare 旧版本可能需要 `pip install -U akshare` |

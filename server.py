@@ -17,7 +17,8 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(level
 from mcp.server.fastmcp import FastMCP
 from sources import (
     YFinanceSource, AkshareSource, EastmoneySource,
-    FMPSource, AlphaVantageSource, NewsAPISource,
+    WorldBankSource, StatsGovCNSource, CoinGeckoSource,
+    FMPSource, AlphaVantageSource, NewsAPISource, FREDSource,
 )
 from sources.config import build_source_registry, AVAILABLE_SOURCES, compute_timeouts
 
@@ -29,7 +30,9 @@ mcp = FastMCP(
         "company_profile for company info and valuation, competitor_compare for peer analysis, "
         "market_data for industry/market data, news_search for recent news, "
         "industry_data for industry classification and constituents, "
-        "stock_news for company-specific news and announcements. "
+        "stock_news for company-specific news and announcements, "
+        "macro_data for macroeconomic indicators (GDP, CPI, unemployment, rates) by country, "
+        "crypto_data for cryptocurrency market data via CoinGecko. "
         "Supports company names (Chinese or English) and ticker symbols. "
         "No API keys required for basic data; configure keys for enhanced sources."
     ),
@@ -40,10 +43,14 @@ mcp = FastMCP(
 _yfinance = YFinanceSource()
 _akshare = AkshareSource()
 _eastmoney = EastmoneySource()
+_worldbank = WorldBankSource()
+_stats_gov_cn = StatsGovCNSource()
+_coingecko = CoinGeckoSource()
 
 _fmp = None
 _av = None
 _newsapi = None
+_fred = None
 
 if FMPSource is not None:
     try:
@@ -60,6 +67,12 @@ if AlphaVantageSource is not None:
 if NewsAPISource is not None:
     try:
         _newsapi = NewsAPISource()
+    except Exception:
+        pass
+
+if FREDSource is not None:
+    try:
+        _fred = FREDSource()
     except Exception:
         pass
 
@@ -432,6 +445,86 @@ async def stock_news(identifier: str, days: int = 7, limit: int = 10) -> str:
     return json.dumps({
         "success": False, "identifier": identifier,
         "error": result.error or "No stock news from available sources.",
+    }, ensure_ascii=False)
+
+
+@mcp.tool()
+async def macro_data(
+    indicator: str, region: str = "US", period: str = "monthly", years: int = 3
+) -> str:
+    """Get macroeconomic indicator time series for a country/region.
+
+    Args:
+        indicator: Indicator name. Common values: "gdp", "gdp_growth", "cpi", "cpi_yoy",
+                   "ppi", "pmi", "m2", "interest_rate", "unemployment", "retail_sales",
+                   "industrial_production", "fdi", "exports", "imports", "fx".
+        region: Country/region code: "US", "CN", "EU", "JP", "UK", "DE", "FR", "IN",
+                or "global" for World Bank world aggregates.
+        period: "monthly", "quarterly", or "annual" (used where source supports it).
+        years: Number of years of history to retrieve (default 3).
+
+    Source priority:
+        US     -> FRED (if key) -> WorldBank
+        CN     -> stats_gov_cn (NBS/PBOC via akshare) -> WorldBank
+        Other  -> WorldBank (annual) -> FRED (if key, fx_dxy only)
+    """
+    region_upper = region.upper()
+    sources = []
+
+    if region_upper in ("US", "USA"):
+        if _fred:
+            sources.append((_fred, "get_macro_data", {"indicator": indicator, "region": "US", "period": period, "years": years}))
+        sources.append((_worldbank, "get_macro_data", {"indicator": indicator, "region": "US", "period": "annual", "years": years}))
+    elif region_upper in ("CN", "CHINA", "CHN"):
+        sources.append((_stats_gov_cn, "get_macro_data", {"indicator": indicator, "region": "CN", "period": period, "years": years}))
+        sources.append((_worldbank, "get_macro_data", {"indicator": indicator, "region": "CN", "period": "annual", "years": years}))
+    else:
+        sources.append((_worldbank, "get_macro_data", {"indicator": indicator, "region": region, "period": "annual", "years": years}))
+        if _fred and indicator.lower() in ("fx_dxy",):
+            sources.append((_fred, "get_macro_data", {"indicator": indicator, "region": "global", "period": period, "years": years}))
+
+    result = await _run_with_fallback(sources, timeout_budget=8.0)
+    if result.has_data():
+        data = _to_dict(result.data) if isinstance(result.data, dict) or hasattr(result.data, "__dataclass_fields__") else {"data": result.data}
+        data["data_source"] = result.source
+        data["fetched_at"] = _fetched_at()
+        return json.dumps({"success": True, **data}, ensure_ascii=False, default=str)
+
+    return json.dumps({
+        "success": False, "indicator": indicator, "region": region,
+        "error": result.error or "No macro data available.",
+        "suggestion": (
+            f"For US data, configure FRED key (free): senior_analyst setup-keys --service fred. "
+            f"For CN data, ensure akshare is installed and reachable. "
+            f"World Bank covers most countries with annual data."
+        ),
+    }, ensure_ascii=False)
+
+
+@mcp.tool()
+async def crypto_data(identifier: str, metrics: str = "price,marketcap,volume") -> str:
+    """Get cryptocurrency market data via CoinGecko.
+
+    Args:
+        identifier: Symbol (e.g., "BTC", "ETH") or CoinGecko id (e.g., "bitcoin", "ethereum").
+        metrics: Comma-separated metrics to focus on (default: "price,marketcap,volume").
+                 Currently informational; full asset snapshot is always returned.
+    """
+    sources = [(_coingecko, "get_crypto_data", {"identifier": identifier, "metrics": metrics})]
+    result = await _run_with_fallback(sources, timeout_budget=6.0)
+
+    if result.has_data():
+        data = _to_dict(result.data) if hasattr(result.data, "__dataclass_fields__") else {"data": result.data}
+        if not isinstance(data, dict):
+            data = {"data": data}
+        data["data_source"] = result.source
+        data["fetched_at"] = _fetched_at()
+        return json.dumps({"success": True, **data}, ensure_ascii=False, default=str)
+
+    return json.dumps({
+        "success": False, "identifier": identifier,
+        "error": result.error or "CoinGecko unavailable.",
+        "suggestion": "Check spelling — common symbols: BTC, ETH, SOL, BNB, XRP. For lesser-known coins, use the CoinGecko id (e.g., 'avalanche-2' instead of 'AVAX').",
     }, ensure_ascii=False)
 
 

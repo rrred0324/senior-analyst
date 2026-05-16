@@ -2,6 +2,13 @@
 
 Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
+> **v1.7.0 升级要点（2026-05）**
+> - **新增 2 个 MCP 工具**：`macro_data`（宏观经济）+ `crypto_data`（加密资产）
+> - **5 个新数据源**：FRED（美宏观）/ World Bank（全球）/ stats_gov_cn（中国 NBS+PBOC）/ CoinGecko（加密）
+> - **新增 CLI**：`senior_analyst-doctor` 一键自检 + `senior_analyst-setup-keys` 交互式 API key 配置
+> - **港股别名扩充 30+**：汇丰、友邦、中海油、招行、中国人寿、各互联网公司港股二次上市等
+> - **API key 用户友好**：免费源即可工作；FRED 免费 key（30 秒注册）解锁美国宏观
+
 ## 功能
 
 ### 数据工具（MCP 服务器，自动调用）
@@ -12,6 +19,20 @@ Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 - **news_search** — 新闻搜索（公司/行业/事件相关新闻）
 - **industry_data** — 行业分类与成分股（申万/东方财富行业板块）
 - **stock_news** — 个股新闻与公告
+- **macro_data** *(v1.7+)* — 宏观经济（GDP/CPI/PMI/失业率/利率/M2，覆盖中/美/欧/全球）
+- **crypto_data** *(v1.7+)* — 加密资产（价格/市值/24h 量/流通量，CoinGecko）
+
+### CLI 工具（v1.7+）
+- **senior_analyst-doctor** — 数据源健康自检；显示 Tier 0/Tier 1 状态、延迟、缓存使用
+- **senior_analyst-setup-keys** — 交互式 API key 配置；存储到 `~/.config/senior_analyst/.env`（chmod 600）
+
+### 数据源分层
+
+| Tier | 数据源 | 是否需 key | 适用范围 |
+|------|--------|----------|---------|
+| Tier 0 | yfinance / akshare / eastmoney / **worldbank** / **stats_gov_cn** / **coingecko** | 否 | 财务/市场/中国宏观/全球宏观/加密 |
+| Tier 1 (free key) | **FRED** / Alpha Vantage / NewsAPI | 是（免费） | 美国宏观 / 全球股票 / 英文新闻 |
+| Tier 1 (paid) | FMP / CoinGecko Pro | 是（付费） | 全球财报增强 / 加密高级 |
 
 ### 分析框架（skill 层，9 类任务）
 - 指标异动诊断
@@ -233,20 +254,42 @@ L1 输出后自动追问是否升级到 L2/L3，渐进式深入。
 
 ## 数据源
 
-| 源 | 类型 | 覆盖 | 中国可用 | API Key |
-|----|------|------|---------|---------|
-| 东方财富 (eastmoney) | HTTP API | A 股财务数据、行业板块、新闻搜索 | ✅ | 无 |
-| akshare | Python 库 | A 股、港股、申万行业、宏观经济 | ✅ | 无 |
-| yfinance | Python 库 | 美股、港股、全球市场 | ❌ 大陆不可用 | 无 |
-| FMP | REST API | 美股/全球财务、同行、行业数据 | ✅ | 可选 |
-| Alpha Vantage | REST API | 财务、估值、新闻情绪 | ✅ | 可选 |
-| NewsAPI | REST API | 专业新闻搜索（中英文） | ✅ | 可选 |
+| 源 | 类型 | 覆盖 | 中国可用 | API Key | Tier |
+|----|------|------|---------|---------|------|
+| 东方财富 (eastmoney) | HTTP API | A 股财务、行业板块、新闻 | ✅ | 无 | 0 |
+| akshare | Python 库 | A 股、港股、宏观、行业 | ✅ | 无 | 0 |
+| yfinance | Python 库 | 美股、港股、全球市场 | ❌ 大陆不可用 | 无 | 0 |
+| **stats_gov_cn** *(v1.7)* | Python 库 | 中国 NBS / PBOC / 海关宏观 | ✅ | 无 | 0 |
+| **World Bank** *(v1.7)* | REST API | 全球 200+ 国家宏观（年度） | ✅ | 无 | 0 |
+| **CoinGecko** *(v1.7)* | REST API | 加密资产价格、市值、量 | ✅ | 无（Pro 可选） | 0 |
+| **FRED** *(v1.7)* | REST API | 美国宏观（高频，GDP/CPI/利率） | ✅ | **免费 key** | 1 |
+| FMP | REST API | 美股/全球财务、同行、行业 | ✅ | 付费 | 1 |
+| Alpha Vantage | REST API | 财务、估值、新闻情绪 | ✅ | 免费 key | 1 |
+| NewsAPI | REST API | 专业新闻搜索（中英文） | ✅ | 免费 key | 1 |
 
 默认降级链（零 API Key）：**eastmoney → akshare → yfinance**
 
-配置 API Key 后：**FMP → eastmoney → akshare → yfinance → Alpha Vantage**
+宏观降级链：**FRED（美/有 key）→ stats_gov_cn（中）→ World Bank（其他/兜底）**
 
 新闻搜索降级链：**NewsAPI（可选）→ akshare → 东方财富搜索 API → Alpha Vantage（可选）**
+
+## 健康自检 & API key 配置（v1.7+）
+
+```bash
+# 一键自检所有数据源
+./bin/senior_analyst-doctor
+
+# 交互式配置 API key（推荐配 FRED）
+./bin/senior_analyst-setup-keys
+
+# 直接配置单个服务
+./bin/senior_analyst-setup-keys --service fred
+
+# 仅显示当前 key 状态
+./bin/senior_analyst-setup-keys --list
+```
+
+key 存储在 `~/.config/senior_analyst/.env`（chmod 600）。配置后需重启 Claude Code 让 MCP server 重新读取。
 
 ## 要求
 

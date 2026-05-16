@@ -45,7 +45,7 @@ def resolve_ticker(identifier: str) -> str | None:
     # Direct map lookup
     if identifier in ticker_map:
         t = ticker_map[identifier]
-        if t.startswith("PRIVATE:"):
+        if t.startswith("PRIVATE:") or t.startswith("CRYPTO:"):
             return None
         return t
 

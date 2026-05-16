@@ -50,6 +50,38 @@ class CompanyProfileData:
     description: str = ""
 
 
+@dataclass
+class MacroDataPoint:
+    date: str = ""            # ISO 8601 (YYYY-MM-DD or YYYY-Q1)
+    value: float | None = None
+    unit: str = ""            # "%", "USD billion", "index", etc.
+
+
+@dataclass
+class MacroSeriesData:
+    indicator: str = ""       # canonical key, e.g. "gdp", "cpi"
+    region: str = ""          # "US", "CN", "EU", ...
+    period: str = "monthly"   # "monthly", "quarterly", "annual"
+    unit: str = ""
+    series_id: str = ""       # provider's native series id (e.g. FRED "GDP")
+    points: list = field(default_factory=list)   # list[MacroDataPoint]
+    notes: str = ""
+
+
+@dataclass
+class CryptoAssetData:
+    symbol: str = ""          # "BTC"
+    name: str = ""            # "Bitcoin"
+    coingecko_id: str = ""    # "bitcoin"
+    price_usd: float | None = None
+    market_cap_usd: float | None = None
+    volume_24h_usd: float | None = None
+    price_change_24h_pct: float | None = None
+    circulating_supply: float | None = None
+    max_supply: float | None = None
+    rank: int | None = None
+
+
 class BaseSource:
     """Base class for all data sources."""
 
@@ -72,4 +104,14 @@ class BaseSource:
         raise NotImplementedError
 
     async def get_news(self, query: str, limit: int = 5) -> DataResult:
+        raise NotImplementedError
+
+    async def get_macro_data(
+        self, indicator: str, region: str = "US", period: str = "monthly", years: int = 3
+    ) -> DataResult:
+        raise NotImplementedError
+
+    async def get_crypto_data(
+        self, identifier: str, metrics: str = "price,marketcap,volume"
+    ) -> DataResult:
         raise NotImplementedError

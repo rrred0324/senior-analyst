@@ -94,9 +94,43 @@ echo "========================================="
 echo "  安装完成!"
 echo "========================================="
 echo ""
+
+# Step 7: 创建 CLI 包装脚本到 bin/
+mkdir -p "$SCRIPT_DIR/bin"
+DOCTOR_BIN="$SCRIPT_DIR/bin/senior_analyst-doctor"
+SETUP_BIN="$SCRIPT_DIR/bin/senior_analyst-setup-keys"
+cat > "$DOCTOR_BIN" <<'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$SCRIPT_DIR/venv/bin/python" -m cli.doctor "$@"
+EOF
+cat > "$SETUP_BIN" <<'EOF'
+#!/bin/bash
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec "$SCRIPT_DIR/venv/bin/python" -m cli.setup_keys "$@"
+EOF
+chmod +x "$DOCTOR_BIN" "$SETUP_BIN"
+echo "  CLI 工具已就绪："
+echo "    $DOCTOR_BIN"
+echo "    $SETUP_BIN"
+echo ""
+
+# Step 8: 自检
+echo "[自检] 运行 senior_analyst doctor..."
+if "$DOCTOR_BIN"; then
+    echo ""
+else
+    echo ""
+    echo "  ⚠️  部分 Tier 0 数据源不健康（见上方 ✗ 标记）"
+    echo "  这通常是网络问题，多数情况下可忽略；如持续失败请检查 ~/.config/senior_analyst/.env"
+    echo ""
+fi
+
 echo "  使用方式:"
-echo "    /senior_analyst 滴滴    → 直接分析"
-echo "    /senior_analyst         → 引导模式"
+echo "    /senior_analyst 滴滴             → 在 Claude Code 中分析"
+echo "    /senior_analyst                  → 引导模式"
+echo "    $DOCTOR_BIN                      → 健康自检（任何时候）"
+echo "    $SETUP_BIN                       → 配置 API key（FRED 免费推荐）"
 echo ""
 echo "  如果这是首次安装，请重启 Claude Code 使 MCP 服务器生效。"
 echo ""

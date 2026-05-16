@@ -1,12 +1,16 @@
 from .yfinance_source import YFinanceSource
 from .akshare_source import AkshareSource
 from .eastmoney_source import EastmoneySource
-from .config import has_fmp, has_av, has_newsapi
+from .worldbank_source import WorldBankSource
+from .stats_gov_cn_source import StatsGovCNSource
+from .coingecko_source import CoinGeckoSource
+from .config import has_fmp, has_av, has_newsapi, has_fred
 
 # Tier 1 sources (optional, require API keys)
 FMPSource = None
 AlphaVantageSource = None
 NewsAPISource = None
+FREDSource = None
 
 if has_fmp():
     try:
@@ -26,7 +30,14 @@ if has_newsapi():
     except Exception:
         pass
 
+if has_fred():
+    try:
+        from .fred_source import FREDSource
+    except Exception:
+        pass
+
 __all__ = [
     "YFinanceSource", "AkshareSource", "EastmoneySource",
-    "FMPSource", "AlphaVantageSource", "NewsAPISource",
+    "WorldBankSource", "StatsGovCNSource", "CoinGeckoSource",
+    "FMPSource", "AlphaVantageSource", "NewsAPISource", "FREDSource",
 ]
