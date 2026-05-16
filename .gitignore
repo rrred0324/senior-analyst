@@ -13,3 +13,4 @@ build/
 .idea/
 .vscode/
 docs/__pycache__/
+_test_macro.py
