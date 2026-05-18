@@ -14,3 +14,5 @@ build/
 .vscode/
 docs/__pycache__/
 _test_macro.py
+*.bak
+test-codex-*.md

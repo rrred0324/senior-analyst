@@ -87,7 +87,7 @@ fi
 
 # 方案C: 如果用户之前 clone 过
 if [ "$VENV_FOUND" = "false" ]; then
-    for candidate in "$HOME/senior-analyst" "$HOME/projects/senior-analyst" "$HOME/ai-project/senior-analyst"; do
+    for candidate in "$HOME/senior-analyst" "$HOME/projects/senior-analyst"; do
         if [ -d "$candidate/venv" ] && [ -f "$candidate/venv/bin/python" ]; then
             VENV_DIR="$candidate/venv"
             VENV_FOUND=true

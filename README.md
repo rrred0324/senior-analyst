@@ -2,7 +2,20 @@
 
 Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
-> **v1.9.0 升级要点（2026-05）**
+> **v2.1.0 升级要点（2026-05）**
+> - **Codex CLI 支持**：通过 `adapters/codex/` 适配 Codex CLI，与 Claude Code 版本同步更新
+> - **references/ 子模式路由**：Codex 版采用原生 `references/` 模式（quantitative、quick-mode、industry-modeling、onboarding）
+> - **统一安装器**：`install.sh` 支持 Claude 和 Codex 双平台，自动路径配置
+> - **向后兼容**：`setup.sh` 保留为 Claude 官方安装器，现有用户零影响
+>
+> **v2.0.0 升级要点**
+> - **估值模型**：DCF + Comps 双方法交叉验证，WACC × 增长率敏感性矩阵
+> - **缓存优化**：MCP 响应缓存，重复查询 <100ms
+> - **懒加载**：按需加载 playbook/knowledge/template，节省上下文
+> - **Watchlist 追踪**：`--track` 模式，自动对比上次快照，标注 Δ 变化
+> - **Lite 行业库**：27 个行业的轻量版知识库（~3KB/行业），L2 分析专用
+>
+> **v1.9.0 升级要点**
 > - **Council 模式**：对抗性审查 + 多视角分析，借鉴 Karpathy llm-council 三阶段架构
 > - **Red Team 审查**：7 类分析谬误自动检查（叙事谬误、锚定效应、确认偏误、线性外推、幸存者偏差、单一归因、范围忽视）
 > - **Bull/Bear 多视角**：关键判断的乐观/悲观推演，显性化方向性假设，论据强度真实反映证据
@@ -176,6 +189,8 @@ L3 完整版行业建模（docs/industry_models/，20-80KB/行业，28 个行业
 
 ## 安装
 
+### For Claude Code
+
 ```bash
 git clone https://github.com/rrred0324/senior-analyst.git
 cd senior-analyst
@@ -183,6 +198,23 @@ cd senior-analyst
 ```
 
 安装后重启 Claude Code。
+
+### For Codex CLI
+
+```bash
+git clone https://github.com/rrred0324/senior-analyst.git
+cd senior-analyst
+./install.sh codex
+```
+
+安装后重启 Codex CLI。
+
+**升级：**
+```bash
+cd /path/to/senior-analyst  # 进入原 clone 目录
+git pull
+./install.sh codex
+```
 
 ### 手动安装
 

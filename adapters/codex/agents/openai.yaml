@@ -1,0 +1,14 @@
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "senior_analyst"
+      transport: "stdio"
+      command: "__SENIOR_ANALYST_HOME__/venv/bin/python"
+      args:
+        - "__SENIOR_ANALYST_HOME__/server.py"
+      env:
+        SENIOR_ANALYST_FMP_KEY: "${SENIOR_ANALYST_FMP_KEY}"
+        SENIOR_ANALYST_AV_KEY: "${SENIOR_ANALYST_AV_KEY}"
+        SENIOR_ANALYST_NEWSAPI_KEY: "${SENIOR_ANALYST_NEWSAPI_KEY}"
+        SENIOR_ANALYST_FRED_KEY: "${SENIOR_ANALYST_FRED_KEY}"
+        SENIOR_ANALYST_COINGECKO_KEY: "${SENIOR_ANALYST_COINGECKO_KEY}"
