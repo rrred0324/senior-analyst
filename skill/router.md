@@ -204,6 +204,20 @@ D) 够了，不需要深入
       消费电子、手机、耳机、智能家居、硬件、品牌、渠道、
       尽调、投资判断、投资决策
 
+### 触发「IPO/新上市公司分析」（新增）
+关键词：IPO、招股书、S-1、F-1、上市、新上市、刚上市、首日上市、新股、发行价、锁定期、打新
+
+路由规则：
+- IPO分析 → 主playbook按任务类型选定 + `playbooks/ipo_analysis.md` 辅助
+- IPO同时包含"估值"→ valuation + ipo_analysis
+- IPO同时包含"财报"→ finance_industry_analysis + ipo_analysis
+- IPO同时包含"商业模式"→ business_analysis + ipo_analysis
+
+额外触发条件：
+- 当分析对象上市不满1年 → 自动附加 ipo_analysis 辅助playbook
+- 当分析对象招股书披露创始人持股>30% → 自动附加治理评级章节
+- 当L3深度报告涉及上市公司 → 强制触发治理评级和客户集中度分析
+
 ## 问题类型不明确时
 
 如果无法从用户问题中明确识别任务类型，优先：
