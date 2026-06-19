@@ -1,13 +1,13 @@
 #!/bin/bash
 # senior_analyst 在线升级脚本
 # 用法: ./upgrade.sh 或通过 /senior_analyst --upgrade 调用
-# 功能: 从 GitHub 拉取最新版本，更新本地安装
+# 功能: 从 GitHub 拉取最新版本，更新本地安装（支持 Claude Code 和 Codex CLI 双路径）
 
 set -e
 
 REPO_URL="https://github.com/rrred0324/senior-analyst.git"
 SKILL_NAME="senior_analyst"
-SKILL_TARGET_DIR="$HOME/.claude/skills/$SKILL_NAME"
+CONFIG_DIR="$HOME/.config/senior_analyst"
 TEMP_DIR=$(mktemp -d)
 
 cleanup() {
@@ -20,105 +20,118 @@ echo "  Senior Analyst 在线升级"
 echo "========================================="
 echo ""
 
-# Step 1: 读取当前版本
+# Step 1: 读取当前版本 + 探测已安装路径
 CURRENT_VERSION="unknown"
-if [ -f "$SKILL_TARGET_DIR/VERSION" ]; then
-    CURRENT_VERSION=$(cat "$SKILL_TARGET_DIR/VERSION" | tr -d '[:space:]')
-fi
-echo "[1/5] 当前版本: $CURRENT_VERSION"
+TARGETS=()
 
-# Step 2: 克隆最新代码
-echo "[2/5] 从 GitHub 拉取最新版本..."
+# 收集所有已安装的路径（Claude + Codex）
+if [ -f "$HOME/.claude/skills/$SKILL_NAME/VERSION" ]; then
+    CURRENT_VERSION="$(tr -d '[:space:]' < "$HOME/.claude/skills/$SKILL_NAME/VERSION")"
+    TARGETS+=("$HOME/.claude/skills/$SKILL_NAME")
+fi
+if [ -f "$HOME/.agents/skills/$SKILL_NAME/VERSION" ]; then
+    _CODEX_VER="$(tr -d '[:space:]' < "$HOME/.agents/skills/$SKILL_NAME/VERSION")"
+    # 如果 Claude 路径没找到版本，用 Codex 的版本
+    if [ "$CURRENT_VERSION" = "unknown" ]; then
+        CURRENT_VERSION="$_CODEX_VER"
+    fi
+    TARGETS+=("$HOME/.agents/skills/$SKILL_NAME")
+fi
+
+echo "[1/6] 当前版本: $CURRENT_VERSION"
+echo "  已安装路径: ${TARGETS[*]}"
+
+if [ ${#TARGETS[@]} -eq 0 ]; then
+    echo ""
+    echo "  未找到已有安装。请先运行 ./setup.sh 或 ./install.sh"
+    exit 1
+fi
+
+# Step 2: 备份当前安装
+echo ""
+echo "[2/6] 备份当前安装..."
+_BACKUP_DIR=$(mktemp -d /tmp/senior-analyst-backup-XXXXXXXX)
+for _TARGET in "${TARGETS[@]}"; do
+    _BASENAME="$(basename "$_TARGET")"
+    _PARENT="$(dirname "$_TARGET")"
+    cp -r "$_TARGET" "$_BACKUP_DIR/$_BASENAME" 2>/dev/null || true
+    echo "  已备份: $_TARGET → $_BACKUP_DIR/$_BASENAME"
+done
+
+# Step 3: 克隆最新代码
+echo ""
+echo "[3/6] 从 GitHub 拉取最新版本..."
 if ! git clone --depth 1 "$REPO_URL" "$TEMP_DIR/repo" 2>/dev/null; then
     echo "  错误: 无法连接 GitHub。请检查网络后重试。"
+    echo "  正在恢复备份..."
+    for _TARGET in "${TARGETS[@]}"; do
+        _BASENAME="$(basename "$_TARGET")"
+        if [ -d "$_BACKUP_DIR/$_BASENAME" ]; then
+            rm -rf "$_TARGET"
+            cp -r "$_BACKUP_DIR/$_BASENAME" "$_TARGET"
+            echo "  已恢复: $_TARGET"
+        fi
+    done
+    rm -rf "$_BACKUP_DIR"
     echo "  备选方案: 手动执行 git pull 后运行 ./setup.sh"
     exit 1
 fi
 echo "  拉取成功 ✓"
 
-# Step 3: 读取新版本
+# Step 4: 读取新版本
 NEW_VERSION="unknown"
 if [ -f "$TEMP_DIR/repo/VERSION" ]; then
-    NEW_VERSION=$(cat "$TEMP_DIR/repo/VERSION" | tr -d '[:space:]')
+    NEW_VERSION="$(tr -d '[:space:]' < "$TEMP_DIR/repo/VERSION")"
 fi
 
 if [ "$CURRENT_VERSION" = "$NEW_VERSION" ]; then
     echo ""
     echo "  已是最新版本 ($NEW_VERSION)，无需升级。"
+    rm -rf "$_BACKUP_DIR"
     exit 0
 fi
 
-echo "[3/5] 新版本: $NEW_VERSION"
+echo ""
+echo "[4/6] 新版本: $NEW_VERSION"
 echo "  更新内容: $CURRENT_VERSION → $NEW_VERSION"
 
-# Step 4: 更新 skill 文件
-echo "[4/5] 更新 skill 文件..."
-if [ ! -d "$SKILL_TARGET_DIR" ]; then
-    echo "  未找到已有安装，执行全新安装..."
-    mkdir -p "$SKILL_TARGET_DIR"
-fi
-cp -r "$TEMP_DIR/repo/skill/"* "$SKILL_TARGET_DIR/"
-cp "$TEMP_DIR/repo/VERSION" "$SKILL_TARGET_DIR/"
-echo "  Skill 文件已更新到 $SKILL_TARGET_DIR ✓"
-
-# Step 5: 更新 Python 依赖和 MCP 注册
-echo "[5/5] 检查依赖更新..."
-# 查找已安装的 venv（可能在原 clone 目录或当前目录）
-VENV_FOUND=false
-
-# 方案A: 查找已有安装路径（从 MCP 配置中提取）
-if command -v claude &>/dev/null; then
-    MCP_CMD=$(claude mcp get "$SKILL_NAME" -s user 2>/dev/null | grep -E "command|args" | head -2 || true)
-    if [ -n "$MCP_CMD" ]; then
-        # 尝试从 MCP 配置中提取 python 路径
-        MCP_PYTHON=$(echo "$MCP_CMD" | grep -oE '/[^ ]*senior-analyst[^ ]*python[^ ]*' | head -1 || true)
-        if [ -n "$MCP_PYTHON" ] && [ -x "$MCP_PYTHON" ]; then
-            VENV_DIR=$(dirname "$(dirname "$MCP_PYTHON")")
-            VENV_FOUND=true
-        fi
+# Step 5: 更新每个已安装路径
+echo ""
+echo "[5/6] 更新 skill 文件..."
+for _TARGET in "${TARGETS[@]}"; do
+    cp -r "$TEMP_DIR/repo/skill/"* "$_TARGET/"
+    cp "$TEMP_DIR/repo/VERSION" "$_TARGET/"
+    # 同步 bin 脚本到 skill 父级 bin 目录（如果有）
+    if [ -d "$_TARGET/../bin" ]; then
+        cp -r "$TEMP_DIR/repo/bin/"* "$_TARGET/../bin/" 2>/dev/null || true
     fi
-fi
+    echo "  已更新: $_TARGET ✓"
+done
 
-# 方案B: 如果 venv 在当前目录
-if [ "$VENV_FOUND" = "false" ] && [ -d "./venv" ] && [ -f "./venv/bin/python" ]; then
-    VENV_DIR="./venv"
-    VENV_FOUND=true
-fi
+# 部署 update-check 到 ~/.local/bin
+mkdir -p "$HOME/.local/bin"
+cp "$TEMP_DIR/repo/bin/senior_analyst-update-check" "$HOME/.local/bin/" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true
+echo "  Update checker deployed to ~/.local/bin ✓"
 
-# 方案C: 如果用户之前 clone 过
-if [ "$VENV_FOUND" = "false" ]; then
-    for candidate in "$HOME/senior-analyst" "$HOME/projects/senior-analyst"; do
-        if [ -d "$candidate/venv" ] && [ -f "$candidate/venv/bin/python" ]; then
-            VENV_DIR="$candidate/venv"
-            VENV_FOUND=true
-            break
-        fi
-    done
-fi
+# Step 6: 写 marker + 清理 snooze + 展示 What's New
+mkdir -p "$CONFIG_DIR"
+echo "$CURRENT_VERSION" > "$CONFIG_DIR/just-upgraded-from"
+rm -f "$CONFIG_DIR/update-snoozed"
 
-if [ "$VENV_FOUND" = "true" ]; then
-    VENV_PYTHON="$VENV_DIR/bin/python"
-    echo "  找到虚拟环境: $VENV_DIR"
-
-    # 更新依赖
-    $VENV_PYTHON -m pip install -q -r "$TEMP_DIR/repo/requirements.txt" 2>/dev/null && echo "  依赖已更新 ✓" || echo "  依赖更新跳过（非关键）"
-
-    # 重新注册 MCP（确保 server.py 路径正确）
-    if command -v claude &>/dev/null; then
-        # 从 venv 路径推导 repo 路径
-        REPO_DIR=$(dirname "$VENV_DIR")
-        if [ -f "$REPO_DIR/server.py" ]; then
-            claude mcp remove "$SKILL_NAME" -s user 2>/dev/null || true
-            claude mcp add -s user "$SKILL_NAME" "$VENV_PYTHON" "$REPO_DIR/server.py"
-            echo "  MCP 服务器已重新注册 ✓"
-        else
-            echo "  server.py 未找到，MCP 注册保持不变"
-        fi
-    fi
+echo ""
+echo "[6/6] What's New in v$NEW_VERSION:"
+echo "─────────────────────────────────────"
+if [ -f "$TEMP_DIR/repo/CHANGELOG.md" ]; then
+    sed -n "/^## \[${NEW_VERSION}\]/,/^## \[/{/^## \[/!p}" "$TEMP_DIR/repo/CHANGELOG.md" | head -40
 else
-    echo "  未找到虚拟环境，跳过依赖更新"
-    echo "  如需完整更新，请到原安装目录运行: git pull && ./setup.sh"
+    echo "  See: https://github.com/rrred0324/senior-analyst/releases/tag/v${NEW_VERSION}"
 fi
+echo "─────────────────────────────────────"
+
+# 清理：立即删除 git clone 临时目录，备份 5 分钟后清理
+rm -rf "$TEMP_DIR"
+(sleep 300 && rm -rf "$_BACKUP_DIR" 2>/dev/null || true) &
 
 echo ""
 echo "========================================="

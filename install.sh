@@ -57,6 +57,12 @@ cp -r skill/knowledge "$SKILL_DIR/"
 cp -r skill/templates "$SKILL_DIR/"
 cp VERSION "$SKILL_DIR/"
 
+# Deploy update checker
+echo "📦 Deploying update checker..."
+mkdir -p "$HOME/.local/bin"
+cp bin/senior_analyst-update-check "$HOME/.local/bin/" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true
+
 # Codex-specific: Replace path placeholders in openai.yaml and .mcp.json
 if [[ "$PLATFORM" == "codex" ]]; then
   echo "🔧 Configuring MCP paths..."

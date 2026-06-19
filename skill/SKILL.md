@@ -5,6 +5,167 @@ description: 商业分析专家 skill。当用户提出涉及数据分析、战�
 
 # Senior Analyst · 商业分析 Skill
 
+## 版本检测（自动触发）
+
+每次加载本 skill 时，执行以下命令自动检测版本：
+
+```bash
+_UC=""
+# 优先从 ~/.local/bin 查找（install.sh / upgrade.sh 部署位置）
+if [ -x "$HOME/.local/bin/senior_analyst-update-check" ]; then
+    _UC=$("$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true)
+# 回退：从常见 repo clone 位置查找
+elif [ -x "$HOME/ai-project/senior-analyst/bin/senior_analyst-update-check" ]; then
+    _UC=$("$HOME/ai-project/senior-analyst/bin/senior_analyst-update-check" 2>/dev/null || true)
+# 最终回退：跳过检测（未安装 update-check 脚本）
+fi
+[ -n "$_UC" ] && echo "$_UC" || true
+```
+
+**输出的语义**：
+- `UPGRADE_AVAILABLE <old> <new>` → 按照下方 **Inline 升级流程** 处理
+- `JUST_UPGRADED <old> <new>` → 显示 "Running senior_analyst v{new} (just updated from v{old})!" 并继续当前任务
+- 空 → 继续当前任务
+
+## Inline 升级流程
+
+当检测到 `UPGRADE_AVAILABLE <old> <new>` 时，按以下流程处理：
+
+### Step 1: 检查自动升级设置
+
+```bash
+_AUTO=$(cat ~/.config/senior_analyst/auto-upgrade 2>/dev/null || echo "false")
+echo "AUTO_UPGRADE=$_AUTO"
+```
+
+**如果 `AUTO_UPGRADE=true`**: 跳过询问，直接执行 Step 2。如果升级失败，从备份目录恢复并通过 AskUserQuestion 告知用户："Auto-upgrade failed — restored previous version v{old}. You can retry with `/senior_analyst --upgrade`."
+
+**否则**: 通过 AskUserQuestion 提示用户：
+
+> senior_analyst 有新版本可用：v{old} → v{new}
+>
+> 选项：
+
+- A) **Yes, upgrade now** — 立即升级，完成后展示 What's New
+- B) **Always keep me up to date** — 启用自动升级，本次及以后都不再询问
+- C) **Not now** — 跳过本次提醒（snooze）
+- D) **Never ask again** — 永久关闭升级检测
+
+**如果选 A**: 执行 Step 2。
+
+**如果选 B**:
+```bash
+mkdir -p ~/.config/senior_analyst
+echo "true" > ~/.config/senior_analyst/auto-upgrade
+```
+告知用户："Auto-upgrade enabled. Future updates will install automatically." 然后执行 Step 2。
+
+**如果选 C**: 写入 snooze 状态（递增延迟），然后继续当前 skill 任务，不再提及升级。
+```bash
+_SNOOZE_FILE="$HOME/.config/senior_analyst/update-snoozed"
+_LEVEL=1
+_NOW=$(date +%s)
+if [ -f "$_SNOOZE_FILE" ]; then
+    _SNOOZED_VER=$(awk '{print $1}' "$_SNOOZE_FILE")
+    if [ "$_SNOOZED_VER" = "$_NEW_VER" ]; then
+        _CUR_LEVEL=$(awk '{print $2}' "$_SNOOZE_FILE")
+        case "$_CUR_LEVEL" in *[!0-9]*) _CUR_LEVEL=0 ;; esac
+        _LEVEL=$((_CUR_LEVEL + 1))
+    fi
+fi
+[ "$_LEVEL" -gt 3 ] && _LEVEL=3
+echo "$_NEW_VER $_LEVEL $_NOW" > "$_SNOOZE_FILE"
+```
+告知用户延迟时长："Next reminder in 24h"（或 48h / 1 week）。提示："Set `auto-upgrade: true` via `echo true > ~/.config/senior_analyst/auto-upgrade` for automatic upgrades."
+
+**如果选 D**:
+```bash
+mkdir -p ~/.config/senior_analyst
+touch ~/.config/senior_analyst/update-check-disabled
+```
+告知用户："Update checks disabled. Run `/senior_analyst --version` at any time to check manually, or re-enable with: `rm ~/.config/senior_analyst/update-check-disabled`"
+
+### Step 2: 执行升级
+
+```bash
+# 从 preamble UPGRADE_AVAILABLE 行解析旧版本号
+_OLD_VER="<从 UPGRADE_AVAILABLE 行的第二个字段解析>"
+
+# 备份当前安装
+_BACKUP_DIR=$(mktemp -d /tmp/senior-analyst-backup-XXXXXXXX)
+for _TARGET in ~/.claude/skills/senior_analyst ~/.agents/skills/senior_analyst; do
+    if [ -d "$_TARGET" ]; then
+        _BASENAME="$(basename "$_TARGET")"
+        cp -r "$_TARGET" "$_BACKUP_DIR/$_BASENAME" 2>/dev/null || true
+    fi
+done
+
+# 克隆并更新
+_TEMP_DIR=$(mktemp -d /tmp/senior-analyst-upgrade-XXXXXXXX)
+if ! git clone --depth 1 https://github.com/rrred0324/senior-analyst.git "$_TEMP_DIR/repo" 2>/dev/null; then
+    # 升级失败 → 恢复备份
+    for _DIR in "$_BACKUP_DIR"/*; do
+        [ -d "$_DIR" ] && cp -r "$_DIR"/* "$HOME/.claude/skills/senior_analyst/" 2>/dev/null || true
+        [ -d "$_DIR" ] && cp -r "$_DIR"/* "$HOME/.agents/skills/senior_analyst/" 2>/dev/null || true
+    done
+    rm -rf "$_BACKUP_DIR" "$_TEMP_DIR"
+    echo "UPGRADE_FAILED"
+    exit 1
+fi
+
+# 更新到所有已安装路径
+for _TARGET in ~/.claude/skills/senior_analyst ~/.agents/skills/senior_analyst; do
+    if [ -d "$_TARGET" ]; then
+        cp -r "$_TEMP_DIR/repo/skill/"* "$_TARGET/"
+        cp "$_TEMP_DIR/repo/VERSION" "$_TARGET/"
+        if [ -d "$_TARGET/../bin" ]; then
+            cp -r "$_TEMP_DIR/repo/bin/"* "$_TARGET/../bin/" 2>/dev/null || true
+        fi
+    fi
+done
+
+# 部署 update-check 到 ~/.local/bin
+mkdir -p "$HOME/.local/bin"
+cp "$_TEMP_DIR/repo/bin/senior_analyst-update-check" "$HOME/.local/bin/" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true
+
+# 提取 changelog 供 Step 3 展示
+_NEW_VER="$(tr -d '[:space:]' < "$HOME/.claude/skills/senior_analyst/VERSION" 2>/dev/null || tr -d '[:space:]' < "$HOME/.agents/skills/senior_analyst/VERSION" 2>/dev/null || true)"
+if [ -f "$_TEMP_DIR/repo/CHANGELOG.md" ]; then
+    sed -n "/^## \\[${_NEW_VER}\\]/,/^## \\[/{/^## \\[/!p}" "$_TEMP_DIR/repo/CHANGELOG.md" | head -40 > /tmp/senior-analyst-whats-new.txt
+fi
+
+# 写 marker
+mkdir -p ~/.config/senior_analyst
+echo "$_OLD_VER" > ~/.config/senior_analyst/just-upgraded-from
+rm -f ~/.config/senior_analyst/update-snoozed
+
+# 立即清理 git clone 临时目录（备份保留 5 分钟给回退窗口）
+rm -rf "$_TEMP_DIR"
+(sleep 300 && rm -rf "$_BACKUP_DIR" 2>/dev/null || true) &
+```
+
+如果升级失败（输出 `UPGRADE_FAILED`）：
+告知用户："Upgrade failed — restored previous version. Run `/senior_analyst --upgrade` manually to retry."
+
+### Step 3: 展示 What's New
+
+```bash
+_NEW_VER="$(tr -d '[:space:]' < ~/.claude/skills/senior_analyst/VERSION 2>/dev/null || tr -d '[:space:]' < ~/.agents/skills/senior_analyst/VERSION 2>/dev/null || true)"
+echo "✨ senior_analyst upgraded to v$_NEW_VER"
+
+if [ -f /tmp/senior-analyst-whats-new.txt ]; then
+    cat /tmp/senior-analyst-whats-new.txt
+    rm -f /tmp/senior-analyst-whats-new.txt
+else
+    echo "See what's new: https://github.com/rrred0324/senior-analyst/releases/tag/v${_NEW_VER}"
+fi
+```
+
+### Step 4: 继续当前任务
+
+升级完成后，当前 Claude Code 会话中加载的 SKILL.md 仍是旧版本（已缓存在上下文中）。新版本会在**下次** `/senior_analyst` 调用时生效。继续执行用户原始请求的 skill 任务。
+
 ## 交互模式
 
 ### 带参数模式
@@ -27,6 +188,8 @@ description: 商业分析专家 skill。当用户提出涉及数据分析、战�
 → 输出后追问是否需要深入
 
 ### 升级模式
+> **注意**：本模式是用户主动触发的升级入口（`/senior_analyst --upgrade`）。上方 **Inline 升级流程** 是 preamble 检测到新版本时被动触发的补充入口。两者升级逻辑等价，但 Inline 流程有额外的备份/回滚/交互环节。
+
 用户输入：`/senior_analyst --upgrade`
 → 识别到 --upgrade 标志
 → 执行在线升级流程：

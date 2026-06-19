@@ -75,6 +75,13 @@ cp -r "$SCRIPT_DIR/skill/"* "$SKILL_TARGET_DIR/"
 cp "$SCRIPT_DIR/VERSION" "$SKILL_TARGET_DIR/"
 echo "  Skill 文件已安装到 $SKILL_TARGET_DIR ✓"
 
+# Step 5.5: 部署 update-check 脚本
+echo "  部署升级检测脚本..."
+mkdir -p "$HOME/.local/bin"
+cp "$SCRIPT_DIR/bin/senior_analyst-update-check" "$HOME/.local/bin/" 2>/dev/null || true
+chmod +x "$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true
+echo "  Update checker 已部署到 ~/.local/bin ✓"
+
 # Step 6: 验证
 echo "[6/6] 验证安装..."
 if command -v claude &>/dev/null; then

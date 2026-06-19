@@ -2,6 +2,13 @@
 
 Claude Code 的商业分析 skill，输入 `/senior_analyst` 即可触发。
 
+> **v2.3.0 升级要点（2026-06）**
+> - **自动升级检测**：每次加载 skill 时自动检测远程版本，有新版时交互式提示升级
+> - **Inline 升级流程**：4 种选项（立即升级 / 自动升级 / 稍后提醒 / 永不询问），体验与 gstack 一致
+> - **Snooze 递增机制**：首次跳过 24h 后再提醒，第二次 48h，第三次起 7 天
+> - **双路径升级**：同时支持 Claude Code（`~/.claude/skills/`）和 Codex CLI（`~/.agents/skills/`）
+> - **备份与回滚**：升级前自动备份，失败时自动恢复原版本
+
 > **v2.2.0 升级要点（2026-06）**
 > - **执行门控**：财报分析5步顺序变为强制前置门控，不可跳步（数据不可得留空位标注缺口）
 > - **IRR矩阵**：估值分析必须输出入场价×持有期×情景的IRR矩阵+概率加权IRR
@@ -269,7 +276,21 @@ SENIOR_ANALYST_NEWSAPI_KEY=your_key
 
 ## 在线升级
 
-当 GitHub 上有新版本发布时，在 Claude Code 中直接升级：
+### 自动升级检测（v2.3.0+）
+
+从 v2.3.0 起，每次加载 `/senior_analyst` 时会自动检测远程版本：
+
+- 发现新版本时弹出交互式提示，提供 4 种选项：
+  - **Yes, upgrade now** — 立即升级并展示 What's New
+  - **Always keep me up to date** — 启用自动升级，以后不再询问
+  - **Not now** — 跳过提醒（首次 24h 后再提醒，第二次 48h，第三次起 7 天）
+  - **Never ask again** — 永久关闭升级检测
+- 升级前自动备份，失败时自动恢复原版本
+- 同时更新 Claude Code 和 Codex CLI 两条安装路径
+
+### 手动升级
+
+在 Claude Code 中直接升级：
 
 ```
 /senior_analyst --upgrade
@@ -288,6 +309,20 @@ SENIOR_ANALYST_NEWSAPI_KEY=your_key
 cd senior-analyst    # 进入原 clone 目录
 git pull
 ./upgrade.sh
+```
+
+### 老用户一次性部署
+
+如果你在 v2.3.0 之前安装了 senior_analyst，可以通过以下命令部署升级检测脚本：
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/rrred0324/senior-analyst/main/install.sh)
+```
+
+或者手动执行：
+
+```bash
+cd senior-analyst && git pull && ./setup.sh
 ```
 
 查看当前版本：`/senior_analyst --version`

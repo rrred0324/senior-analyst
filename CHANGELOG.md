@@ -5,6 +5,24 @@ All notable changes to Senior Analyst will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-06-19
+
+### Added
+- **自动升级检测** — 每次加载 skill 时自动检测远程版本，有新版本时提示用户升级
+- **Inline 升级流程** — 检测到新版本时提供 4 种选项：立即升级 / 自动升级 / 稍后提醒 / 永不询问
+- **Snooze 递增机制** — 首次跳过 24h 后再提醒，第二次 48h，第三次起 7 天
+- **双路径升级支持** — 同时支持 Claude Code（`~/.claude/skills/`）和 Codex CLI（`~/.agents/skills/`）
+- **备份与回滚** — 升级前自动备份，失败时自动恢复原版本
+- **What's New 展示** — 升级成功后展示 CHANGELOG 中对应版本的更新内容
+- **`bin/senior_analyst-update-check` 脚本** — 独立版本检测脚本，移植自 gstack 的 `gstack-update-check` 逻辑
+- **Codex 版版本检测** — `adapters/codex/SKILL.md` 新增 preamble 版本检测区块
+
+### Changed
+- **`upgrade.sh`** — 重构为双路径探测 + 备份/回滚 + changelog 展示 + 自动部署 update-check
+- **`install.sh`** — 安装时部署 `senior_analyst-update-check` 到 `~/.local/bin/`
+- **`setup.sh`** — 同步部署 update-check 脚本
+- **`skill/SKILL.md`** — 新增 preamble 版本检测指令和 inline 升级流程定义
+
 ## [2.2.0] - 2026-06-14
 
 ### Added
