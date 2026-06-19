@@ -5,6 +5,25 @@ description: 商业分析专家 — 财报分析、竞争对比、行业建模�
 
 # Senior Analyst — 商业分析专家（Codex 版）
 
+## 版本检测（自动触发）
+
+每次加载本 skill 时，执行以下命令自动检测版本：
+
+```bash
+_UC=""
+if [ -x "$HOME/.local/bin/senior_analyst-update-check" ]; then
+    _UC=$("$HOME/.local/bin/senior_analyst-update-check" 2>/dev/null || true)
+elif [ -x "$HOME/ai-project/senior-analyst/bin/senior_analyst-update-check" ]; then
+    _UC=$("$HOME/ai-project/senior-analyst/bin/senior_analyst-update-check" 2>/dev/null || true)
+fi
+[ -n "$_UC" ] && echo "$_UC" || true
+```
+
+**输出的语义**：
+- `UPGRADE_AVAILABLE <old> <new>` → 告知用户："senior_analyst 有新版本可用：v{old} → v{new}。运行 `/senior_analyst --upgrade` 进行升级。"
+- `JUST_UPGRADED <old> <new>` → 显示 "Running senior_analyst v{new} (just updated from v{old})!" 并继续当前任务
+- 空 → 继续当前任务
+
 结构化商业与财务分析工具，整合 9 个数据源（FMP、Alpha Vantage、NewsAPI、FRED、World Bank、stats_gov_cn、CoinGecko、yfinance、akshare），提供财报分析、竞争对比、行业建模、宏观研究、情景推演等能力。
 
 ## 使用方式

@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+# senior_analyst-update-check — periodic version check
+#
+# Output (one line, or nothing):
+#   JUST_UPGRADED <old> <new>       — marker found from recent upgrade
+#   UPGRADE_AVAILABLE <old> <new>   — remote VERSION differs from local
+#   (nothing)                       — up to date, snoozed, disabled, or check skipped
+#
+# State files in ~/.config/senior_analyst/:
+#   last-update-check    — cached result + timestamp
+#   update-snoozed       — snooze state (version level epoch)
+#   just-upgraded-from   — marker from recent upgrade (cleaned after 1 read or 24h TTL)
+set -euo pipefail
+
+CONFIG_DIR="${SENIOR_ANALYST_CONFIG_DIR:-$HOME/.config/senior_analyst}"
+CACHE_FILE="$CONFIG_DIR/last-update-check"
+MARKER_FILE="$CONFIG_DIR/just-upgraded-from"
+SNOOZE_FILE="$CONFIG_DIR/update-snoozed"
+REMOTE_URL="https://raw.githubusercontent.com/rrred0324/senior-analyst/main/VERSION"
+
+# ─── Force flag (busts cache + snooze for /senior_analyst --upgrade) ──
+if [ "${1:-}" = "--force" ]; then
+  rm -f "$CACHE_FILE"
+  rm -f "$SNOOZE_FILE"
+fi
+
+# ─── Step 0: Check if updates are disabled ────────────────────
+mkdir -p "$CONFIG_DIR"
+if [ -f "$CONFIG_DIR/update-check-disabled" ]; then
+  exit 0
+fi
+
+# ─── Step 1: Read local version ──────────────────────────────
+LOCAL_VERSION_FILE=""
+for candidate in \
+    "$HOME/.claude/skills/senior_analyst/VERSION" \
+    "$HOME/.agents/skills/senior_analyst/VERSION"; do
+    if [ -f "$candidate" ]; then
+        LOCAL_VERSION_FILE="$candidate"
+        break
+    fi
+done
+
+if [ -z "$LOCAL_VERSION_FILE" ]; then
+    exit 0  # Not installed, skip silently
+fi
+
+LOCAL="$(tr -d '[:space:]' < "$LOCAL_VERSION_FILE")"
+if [ -z "$LOCAL" ]; then
+    exit 0
+fi
+
+# ─── Step 2: Check "just upgraded" marker ─────────────────────
+if [ -f "$MARKER_FILE" ]; then
+    # TTL safeguard: remove markers older than 24h
+    _marker_age=$(find "$MARKER_FILE" -mmin +1440 2>/dev/null || true)
+    if [ -n "$_marker_age" ]; then
+        rm -f "$MARKER_FILE"
+    else
+        OLD="$(tr -d '[:space:]' < "$MARKER_FILE" 2>/dev/null || true)"
+        rm -f "$MARKER_FILE"
+        rm -f "$SNOOZE_FILE"
+        if [ -n "$OLD" ]; then
+            echo "JUST_UPGRADED $OLD $LOCAL"
+        fi
+    fi
+    # Fall through to remote check — more updates may have landed
+fi
+
+# ─── Step 3: Snooze helper ──────────────────────────────────
+# check_snooze <remote_version>
+#   Returns 0 if snoozed (stay quiet), 1 if not snoozed (should output).
+#
+#   Snooze file format: <version> <level> <epoch>
+#   Level durations: 1=24h, 2=48h, 3+=7d
+#   New version (version mismatch) resets snooze.
+check_snooze() {
+    local remote_ver="$1"
+    if [ ! -f "$SNOOZE_FILE" ]; then
+        return 1  # no snooze file → not snoozed
+    fi
+    local snoozed_ver snoozed_level snoozed_epoch
+    snoozed_ver="$(awk '{print $1}' "$SNOOZE_FILE" 2>/dev/null || true)"
+    snoozed_level="$(awk '{print $2}' "$SNOOZE_FILE" 2>/dev/null || true)"
+    snoozed_epoch="$(awk '{print $3}' "$SNOOZE_FILE" 2>/dev/null || true)"
+
+    # Validate: all three fields must be non-empty
+    if [ -z "$snoozed_ver" ] || [ -z "$snoozed_level" ] || [ -z "$snoozed_epoch" ]; then
+        return 1  # corrupt file → not snoozed
+    fi
+
+    # Validate: level and epoch must be integers
+    case "$snoozed_level" in *[!0-9]*) return 1 ;; esac
+    case "$snoozed_epoch" in *[!0-9]*) return 1 ;; esac
+
+    # New version dropped? Ignore snooze.
+    if [ "$snoozed_ver" != "$remote_ver" ]; then
+        return 1
+    fi
+
+    # Compute snooze duration based on level
+    local duration
+    case "$snoozed_level" in
+        1) duration=86400 ;;   # 24 hours
+        2) duration=172800 ;;  # 48 hours
+        *) duration=604800 ;;  # 7 days (level 3+)
+    esac
+
+    local now
+    now="$(date +%s)"
+    local expires=$(( snoozed_epoch + duration ))
+    if [ "$now" -lt "$expires" ]; then
+        return 0  # still snoozed
+    fi
+
+    return 1  # snooze expired
+}
+
+# ─── Step 4: Check cache freshness ──────────────────────────
+if [ -f "$CACHE_FILE" ]; then
+    CACHED="$(cat "$CACHE_FILE")"
+    case "$CACHED" in
+        UP_TO_DATE*)        CACHE_TTL=60 ;;
+        UPGRADE_AVAILABLE*) CACHE_TTL=720 ;;
+        *)                  CACHE_TTL=0 ;;
+    esac
+
+    STALE=$(find "$CACHE_FILE" -mmin +$CACHE_TTL 2>/dev/null || true)
+    if [ -z "$STALE" ] && [ "$CACHE_TTL" -gt 0 ]; then
+        case "$CACHED" in
+            UP_TO_DATE*)
+                CACHED_VER="$(echo "$CACHED" | awk '{print $2}')"
+                if [ "$CACHED_VER" = "$LOCAL" ]; then
+                    exit 0
+                fi
+                ;;
+            UPGRADE_AVAILABLE*)
+                CACHED_OLD="$(echo "$CACHED" | awk '{print $2}')"
+                if [ "$CACHED_OLD" = "$LOCAL" ]; then
+                    CACHED_NEW="$(echo "$CACHED" | awk '{print $3}')"
+                    if check_snooze "$CACHED_NEW"; then
+                        exit 0  # snoozed — stay quiet
+                    fi
+                    echo "$CACHED"
+                    exit 0
+                fi
+                ;;
+        esac
+    fi
+fi
+
+# ─── Step 5: Slow path — fetch remote VERSION ────────────────
+mkdir -p "$CONFIG_DIR"
+
+REMOTE=""
+REMOTE="$(curl -sf --max-time 5 "$REMOTE_URL" 2>/dev/null | tr -d '[:space:]' || true)"
+
+# Validate: must look like a version number (reject HTML error pages)
+if ! echo "$REMOTE" | grep -qE '^[0-9]+\.[0-9]+(\.[0-9]+)*$'; then
+    # Invalid or empty response — assume up to date
+    echo "UP_TO_DATE $LOCAL" > "$CACHE_FILE"
+    exit 0
+fi
+
+if [ "$LOCAL" = "$REMOTE" ]; then
+    echo "UP_TO_DATE $LOCAL" > "$CACHE_FILE"
+    exit 0
+fi
+
+# Versions differ — upgrade available
+echo "UPGRADE_AVAILABLE $LOCAL $REMOTE" > "$CACHE_FILE"
+if check_snooze "$REMOTE"; then
+    exit 0  # snoozed — stay quiet
+fi
+
+echo "UPGRADE_AVAILABLE $LOCAL $REMOTE"
